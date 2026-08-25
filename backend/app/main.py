@@ -51,6 +51,13 @@ async def lifespan(app: FastAPI):
             for cam in cams:
                 if cam.status == "ONLINE":
                     pipe = pipeline_manager.register_camera(cam.id, cam.source)
+                    if cam.calibration_matrix:
+                        calibration_points = cam.calibration_points or {}
+                        pipe.homography.set_matrix(
+                            cam.calibration_matrix,
+                            calibration_points.get("image"),
+                            calibration_points.get("world"),
+                        )
                     # Register zones & machines
                     from app.cv.zones import ZoneDefinition
                     from app.cv.proximity import MachineDefinition
@@ -117,6 +124,25 @@ app.include_router(analytics_router)
 app.include_router(calibration_router)
 app.include_router(demo_router)
 app.include_router(mobile_router)
+
+
+# ---------------------------------------------------------------------------
+# Root Gateway Endpoint
+# ---------------------------------------------------------------------------
+@app.get("/")
+async def root():
+    """Root Gateway for ONE EYE Backend API."""
+    return {
+        "system": "ONE EYE Industrial Safety Intelligence Platform",
+        "status": "ONLINE",
+        "version": "1.0.0",
+        "frontend_url": "http://localhost:3001",
+        "api_docs_url": "http://localhost:8001/docs",
+        "health_check_url": "http://localhost:8001/api/health",
+        "cameras_url": "http://localhost:8001/api/cameras",
+        "events_url": "http://localhost:8001/api/events",
+        "message": "Backend API is running. Open the Frontend UI at http://localhost:3001 or API Docs at http://localhost:8001/docs"
+    }
 
 
 # ---------------------------------------------------------------------------
