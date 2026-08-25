@@ -1,0 +1,189 @@
+import cv2
+import time
+import logging
+from typing import Optional, Tuple, Generator
+import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+class CameraSource:
+    """
+    Unified camera source abstraction supporting:
+    - Local webcam device indexes (0, 1, 2)
+    - Recorded video files (.mp4, .avi)
+    - RTSP / HTTP IP camera streams (rtsp://...)
+    """
+    def __init__(self, camera_id: str, source: str, loop: bool = True):
+        self.camera_id = camera_id
+        self.source_str = str(source)
+        self.loop = loop
+        self.cap: Optional[cv2.VideoCapture] = None
+        self.is_numeric = self.source_str.isdigit()
+
+        if self.is_numeric:
+            self.actual_source = int(self.source_str)
+        elif self.source_str.startswith("uvc_"):
+            try:
+                self.actual_source = int(self.source_str.replace("uvc_", ""))
+            except ValueError:
+                self.actual_source = 0
+        elif self.source_str.startswith("mobile:"):
+            self.actual_source = self.source_str
+        else:
+            # Check if file path is relative and resolve to base_dir
+            from pathlib import Path
+            from app.config import settings
+            p = Path(self.source_str)
+            if not p.is_absolute():
+                base_p = settings.base_dir / self.source_str
+                if base_p.exists():
+                    self.actual_source = str(base_p)
+                else:
+                    self.actual_source = self.source_str
+            else:
+                self.actual_source = self.source_str
+        
+        self.fps: float = 30.0
+        self.width: int = 1280
+        self.height: int = 720
+        self.frame_count: int = 0
+        self.last_frame_time: float = 0.0
+        self.connected: bool = False
+        self._last_reconnect_attempt: float = 0.0
+
+    def connect(self) -> bool:
+        try:
+            if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web"):
+                self.fps = 30.0
+                self.width = 1280
+                self.height = 720
+                self.connected = True
+                return True
+
+            if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+                serial = self.actual_source.split(":", 1)[1]
+                from app.cv.usb_mobile import mobile_manager
+                mob_src = mobile_manager.get_source(serial)
+                if mob_src and mob_src.is_alive():
+                    self.fps = mob_src.fps
+                    self.width = mob_src.width
+                    self.height = mob_src.height
+                    self.connected = True
+                    return True
+                # Try auto connecting
+                ok, _ = mobile_manager.connect_device(serial)
+                if ok:
+                    mob_src = mobile_manager.get_source(serial)
+                    if mob_src:
+                        self.fps = mob_src.fps
+                        self.width = mob_src.width
+                        self.height = mob_src.height
+                        self.connected = True
+                        return True
+                self.connected = False
+                return False
+
+            if self.cap is not None:
+                self.cap.release()
+            
+            self.cap = cv2.VideoCapture(self.actual_source)
+            if not self.cap.isOpened():
+                logger.warning(f"[{self.camera_id}] Failed to open video source: {self.source_str}")
+                self.connected = False
+                return False
+
+            self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30.0
+            if self.fps <= 0 or np.isnan(self.fps):
+                self.fps = 30.0
+            
+            self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 1280
+            self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 720
+            self.connected = True
+            logger.info(f"[{self.camera_id}] Connected to source ({self.width}x{self.height} @ {self.fps:.1f} FPS)")
+            return True
+        except Exception as e:
+            logger.error(f"[{self.camera_id}] Error connecting to source: {e}")
+            self.connected = False
+            return False
+
+    def read(self) -> Tuple[bool, Optional[np.ndarray], float]:
+        """
+        Read next frame with reconnect cooldown.
+        Returns: (success, frame, timestamp)
+        """
+        now = time.time()
+
+        if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web"):
+            from app.cv.usb_mobile import mobile_manager
+            web_res = mobile_manager.get_web_frame(self.camera_id)
+            if web_res:
+                frame, ts = web_res
+                self.frame_count += 1
+                self.last_frame_time = ts
+                return True, frame, ts
+            return False, None, now
+
+        if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+            serial = self.actual_source.split(":", 1)[1]
+            from app.cv.usb_mobile import mobile_manager
+            mob_src = mobile_manager.get_source(serial)
+            if not mob_src or not mob_src.is_alive():
+                # Apply 4-second reconnect cooldown to prevent rapid camera hammering
+                if (now - self._last_reconnect_attempt) < 4.0:
+                    return False, None, now
+                self._last_reconnect_attempt = now
+                if not self.connect():
+                    return False, None, now
+                mob_src = mobile_manager.get_source(serial)
+                if not mob_src:
+                    return False, None, now
+            ok, frame, ts = mob_src.read()
+            if ok:
+                self.frame_count += 1
+                self.last_frame_time = ts
+            return ok, frame, ts
+
+        if not self.connected or self.cap is None:
+            if (now - self._last_reconnect_attempt) < 4.0:
+                return False, None, now
+            self._last_reconnect_attempt = now
+            if not self.connect():
+                return False, None, now
+
+        ret, frame = self.cap.read()
+        timestamp = time.time()
+
+        if not ret:
+            # End of video reached; loop if configured
+            if self.loop and not self.is_numeric and not str(self.actual_source).startswith("uvc_"):
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ret, frame = self.cap.read()
+                if not ret:
+                    self.connected = False
+                    return False, None, timestamp
+            else:
+                self.connected = False
+                return False, None, timestamp
+
+        self.frame_count += 1
+        self.last_frame_time = timestamp
+        return True, frame, timestamp
+
+    def release(self):
+        if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+            self.connected = False
+            return
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.connected = False
+        logger.info(f"[{self.camera_id}] Camera source released")
+
+    def is_alive(self) -> bool:
+        if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+            serial = self.actual_source.split(":", 1)[1]
+            from app.cv.usb_mobile import mobile_manager
+            mob_src = mobile_manager.get_source(serial)
+            return mob_src is not None and mob_src.is_alive()
+        return self.connected and self.cap is not None and self.cap.isOpened()

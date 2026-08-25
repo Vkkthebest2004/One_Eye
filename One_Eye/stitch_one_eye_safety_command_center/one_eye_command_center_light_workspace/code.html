@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>One_Eye Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&amp;family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#a6c8ff",
+                        "surface": "#f7f9fb",
+                        "surface-variant": "#e1e2e8",
+                        "tertiary-container": "#ffdbcb",
+                        "on-secondary-container": "#131c2b",
+                        "on-surface": "#1a1b20",
+                        "on-tertiary-fixed-variant": "#5e2900",
+                        "surface-container-highest": "#e3e2e6",
+                        "inverse-on-surface": "#f1f0f4",
+                        "surface-dim": "#d8dadc",
+                        "inverse-primary": "#a6c8ff",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed": "#d3e3ff",
+                        "primary-container": "#d3e3ff",
+                        "background": "#f7f9fb",
+                        "outline-variant": "#c4c6d0",
+                        "on-secondary": "#ffffff",
+                        "inverse-surface": "#2f3036",
+                        "on-primary-container": "#001b3f",
+                        "surface-container-low": "#f2f4f6",
+                        "on-primary-fixed-variant": "#00458e",
+                        "outline": "#74777f",
+                        "secondary-fixed": "#dae2f9",
+                        "on-primary": "#ffffff",
+                        "on-background": "#1a1b20",
+                        "tertiary-fixed-dim": "#ffb690",
+                        "secondary-container": "#dae2f9",
+                        "tertiary-fixed": "#ffdbcb",
+                        "on-tertiary-container": "#2c1000",
+                        "primary": "#2563eb",
+                        "secondary": "#565e71",
+                        "surface-bright": "#f7f9fb",
+                        "error-container": "#ffdad6",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#2563eb",
+                        "on-tertiary-fixed": "#2c1000",
+                        "secondary-fixed-dim": "#bec6dc",
+                        "on-secondary-fixed-variant": "#3e4759",
+                        "on-secondary-fixed": "#131c2b",
+                        "on-surface-variant": "#44474e",
+                        "surface-container": "#ecedf1",
+                        "on-primary-fixed": "#001b3f",
+                        "surface-container-high": "#e7e8ec",
+                        "on-error-container": "#410002",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary": "#7d5700",
+                        "on-error": "#ffffff",
+                        "severity-critical": "#dc2626",
+                        "severity-warning": "#d97706",
+                        "severity-safe": "#059669",
+                        "severity-info": "#2563eb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "margin-page": "24px",
+                        "gutter": "16px",
+                        "panel-padding": "12px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": [
+                            "Inter"
+                        ],
+                        "label-mono-bold": [
+                            "Geist Mono"
+                        ],
+                        "body-sm": [
+                            "Inter"
+                        ],
+                        "display-lg": [
+                            "Inter"
+                        ],
+                        "label-mono": [
+                            "Geist Mono"
+                        ],
+                        "data-metric": [
+                            "Geist Mono"
+                        ]
+                    },
+                    "fontSize": {
+                        "headline-md": [
+                            "24px",
+                            {
+                                "lineHeight": "32px",
+                                "fontWeight": "600"
+                            }
+                        ],
+                        "label-mono-bold": [
+                            "12px",
+                            {
+                                "lineHeight": "16px",
+                                "fontWeight": "700"
+                            }
+                        ],
+                        "body-sm": [
+                            "14px",
+                            {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                            }
+                        ],
+                        "display-lg": [
+                            "48px",
+                            {
+                                "lineHeight": "56px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "700"
+                            }
+                        ],
+                        "label-mono": [
+                            "12px",
+                            {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "500"
+                            }
+                        ],
+                        "data-metric": [
+                            "32px",
+                            {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.05em",
+                                "fontWeight": "700"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-surface');
+            overflow-x: hidden;
+        }
+
+        .level-1-panel {
+            background-color: theme('colors.surface-container-lowest');
+            border: 1px solid theme('colors.outline-variant');
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .critical-bloom {
+            box-shadow: 0 0 16px rgba(220, 38, 38, 0.15);
+            border: 1px solid theme('colors.severity-critical');
+        }
+
+        .camera-overlay {
+            background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 20%, rgba(255,255,255,0) 80%, rgba(255,255,255,0.8) 100%);
+        }
+        
+        .scan-line {
+            width: 100%;
+            height: 2px;
+            background-color: rgba(37, 99, 235, 0.2);
+            position: absolute;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        
+        .grid-bg {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(116, 119, 127, 0.1) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(116, 119, 127, 0.1) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="flex h-screen w-full antialiased grid-bg">
+<!-- SideNavBar (from JSON) -->
+<nav class="bg-surface-container flex flex-col h-screen fixed left-0 top-0 py-panel-padding z-40 border-r border-outline-variant w-64">
+<div class="px-gutter mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">visibility</span>
+<div>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">ONE_EYE</h1>
+<p class="font-label-mono text-label-mono text-on-surface-variant">Vigilant v2.4</p>
+</div>
+</div>
+<div class="mt-4 px-2 py-1 bg-surface-variant border border-outline-variant rounded inline-block">
+<span class="font-label-mono-bold text-label-mono-bold text-error">DEMO MODE</span>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto px-2 space-y-1">
+<!-- Active Tab: Dashboard -->
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary-container text-on-secondary-container border-l-2 border-primary active:opacity-80 transition-all" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="font-label-mono-bold text-label-mono-bold">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">videocam</span>
+<span class="font-label-mono-bold text-label-mono-bold">Live Monitoring</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">warning</span>
+<span class="font-label-mono-bold text-label-mono-bold">Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">history</span>
+<span class="font-label-mono-bold text-label-mono-bold">Events</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">videocam_off</span>
+<span class="font-label-mono-bold text-label-mono-bold">Cameras</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">polyline</span>
+<span class="font-label-mono-bold text-label-mono-bold">Zones</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">insights</span>
+<span class="font-label-mono-bold text-label-mono-bold">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">map</span>
+<span class="font-label-mono-bold text-label-mono-bold">Safety Map</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="font-label-mono-bold text-label-mono-bold">Settings</span>
+</a>
+</div>
+<div class="px-2 mt-auto space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">help</span>
+<span class="font-label-mono-bold text-label-mono-bold">Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-xl">terminal</span>
+<span class="font-label-mono-bold text-label-mono-bold">Logs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-64 flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar (from JSON) -->
+<header class="bg-surface flex justify-between items-center w-full px-margin-page h-14 z-50 border-b border-outline-variant shrink-0">
+<div class="flex items-center gap-4">
+<div class="font-headline-md text-headline-md font-bold text-primary tracking-tight flex items-center gap-2">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase">One_Eye Safety Intelligence</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<!-- Search -->
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border border-outline-variant rounded-full py-1 pl-9 pr-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-64 transition-all" placeholder="Search entity, camera, or zone..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">memory</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">database</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">account_tree</span>
+</button>
+</div>
+<div class="h-6 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-3">
+<div class="px-2 py-0.5 bg-error-container border border-error rounded flex items-center gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></div>
+<span class="font-label-mono text-label-mono text-error">3 ACTIVE</span>
+</div>
+<div class="flex items-center gap-2 cursor-pointer group">
+<img alt="Operator profile photo" class="w-8 h-8 rounded bg-surface-variant object-cover border border-outline-variant group-hover:border-primary transition-colors" data-alt="A small, stylized avatar image representing a system operator in a digital interface context, dark mode styling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDB3iLyaQ9ujCKsC3YaX-vPb7PWOrGxCVZ0xKT14REbYVO6O5ztsTKTMUz4vMVbx2Oc1DO5BMR7eBbixE-mtxjA3Bz_OnFerFn7ya2d6WW3VUx5TFhR96WfL2EOXmZEVoTyPhTCH9drXeZIahlHNSdaBnYtdYdpDuPIyPXYIvh5Q5L2jhanSEYJ8WfWXW60kSKcVd0pMUBUr44Sp1Gav4VFRliNmC7sQhistDokZYLFbqXPt7kapeSjHA"/>
+<span class="font-label-mono text-label-mono text-on-surface group-hover:text-primary transition-colors hidden lg:block">Operator</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Scrollable Dashboard Content -->
+<div class="flex-1 overflow-y-auto p-margin-page grid grid-cols-12 gap-gutter">
+<!-- Dashboard Header -->
+<div class="col-span-12 mb-2 flex justify-between items-end">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">Good morning, Operator</h2>
+<p class="font-label-mono text-label-mono text-on-surface-variant mt-1 uppercase">Industrial Safety Overview // <span id="current-time">00:00:00</span></p>
+</div>
+<button class="bg-surface-container-lowest border border-outline-variant hover:border-primary text-on-surface px-4 py-2 rounded flex items-center gap-2 transition-all group font-label-mono text-label-mono">
+<span class="material-symbols-outlined text-sm group-hover:text-primary">tune</span>
+                    Filter View
+                </button>
+</div>
+<!-- KPI Row (5 Cards) -->
+<div class="col-span-12 grid grid-cols-5 gap-gutter">
+<!-- KPI 1 -->
+<div class="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-full blur-xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Cameras</span>
+<span class="material-symbols-outlined text-on-surface-variant">videocam</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-data-metric text-data-metric text-on-surface">8/8</span>
+<span class="font-label-mono-bold text-label-mono-bold text-severity-safe flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-severity-safe inline-block"></span>
+                            ONLINE
+                        </span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 border-l-severity-warning">
+<div class="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Active Alerts</span>
+<span class="material-symbols-outlined text-severity-warning">notifications_active</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-data-metric text-data-metric text-severity-warning">03</span>
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant">REQ ATTN</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 border-l-severity-critical critical-bloom">
+<div class="absolute top-0 right-0 w-16 h-16 bg-severity-critical/10 rounded-bl-full blur-xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Critical Events</span>
+<span class="material-symbols-outlined text-severity-critical animate-pulse">warning</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-data-metric text-data-metric text-severity-critical">01</span>
+<span class="font-label-mono-bold text-label-mono-bold text-severity-critical">UNRESOLVED</span>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-severity-info/10 rounded-bl-full blur-xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Workers Tracked</span>
+<span class="material-symbols-outlined text-on-surface-variant">engineering</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-data-metric text-data-metric text-on-surface">27</span>
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant">ON FLOOR</span>
+</div>
+</div>
+<!-- KPI 5 -->
+<div class="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl"></div>
+<div class="flex justify-between items-start mb-4">
+<span class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Avg Risk</span>
+<span class="material-symbols-outlined text-on-surface-variant">speed</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-data-metric text-data-metric text-on-surface">32</span>
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant">/100</span>
+</div>
+<div class="w-full bg-surface-container h-1 mt-2 rounded overflow-hidden">
+<div class="bg-severity-warning h-full rounded" style="width: 32%"></div>
+</div>
+</div>
+</div>
+<!-- Main Split Layout -->
+<div class="col-span-12 grid grid-cols-12 gap-gutter h-[calc(100vh-280px)] min-h-[600px]">
+<!-- Left: 2x2 Camera Grid -->
+<div class="col-span-9 flex flex-col gap-unit">
+<div class="flex justify-between items-center mb-2">
+<h3 class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 bg-severity-safe rounded-full animate-pulse"></span>
+                            Live Monitoring Array
+                        </h3>
+<div class="flex gap-2">
+<button class="bg-surface-container-lowest border border-outline-variant px-2 py-1 rounded text-on-surface-variant hover:text-primary hover:border-primary font-label-mono text-xs shadow-sm">ALL</button>
+<button class="bg-primary/10 border border-primary px-2 py-1 rounded text-primary font-label-mono text-xs shadow-sm">CRITICAL</button>
+</div>
+</div>
+<div class="grid grid-cols-2 grid-rows-2 gap-gutter flex-1">
+<!-- CAM 01 - SAFE -->
+<div class="level-1-panel rounded-lg overflow-hidden relative group">
+<img alt="CAM 01 Feed" class="w-full h-full object-cover grayscale-[10%] contrast-100" data-alt="A realistic, high-security camera angle shot of an Indian industrial worker in a high-visibility vest and a yellow hard hat. The worker has Indian features and is walking through a modern warehouse corridor with polished concrete floors and bright lighting. A green digital bounding box is overlaid on the worker with a label 'Worker #14'. Professional, clean industrial setting. Light theme aesthetic." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+<div class="absolute inset-0 camera-overlay pointer-events-none"></div>
+<div class="scan-line"></div>
+<!-- Overlays -->
+<div class="absolute top-3 left-3 bg-surface-container-lowest/90 backdrop-blur border border-outline-variant px-2 py-1 rounded flex flex-col shadow-sm">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface">CAM 01</span>
+<span class="font-label-mono text-[10px] text-on-surface-variant">SECTOR_A_CORRIDOR</span>
+</div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur border border-severity-safe px-2 py-1 rounded flex items-center gap-1 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-severity-safe"></span>
+<span class="font-label-mono text-xs text-severity-safe">SAFE</span>
+</div>
+<div class="absolute bottom-3 right-3 flex flex-col items-end gap-1">
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">FPS: 29.97</span>
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">BITRATE: 4.2Mbps</span>
+</div>
+<div class="absolute inset-0 border-2 border-transparent group-hover:border-primary/50 transition-colors pointer-events-none rounded-lg"></div>
+</div>
+<!-- CAM 02 - SAFE -->
+<div class="level-1-panel rounded-lg overflow-hidden relative group">
+<img alt="CAM 02 Feed" class="w-full h-full object-cover grayscale-[10%] contrast-100" data-alt="A realistic, high-angle security camera view of a modern electronics assembly line in India. Indian female technicians in lab coats and safety gear are visible working at stations. A blue digital translucent box is overlaid on a specific machine with a label 'Automated Sorter [ACTIVE]'. Bright, professional lighting. Clean industrial environment. Light theme aesthetic." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+<div class="absolute inset-0 camera-overlay pointer-events-none"></div>
+<!-- Overlays -->
+<div class="absolute top-3 left-3 bg-surface-container-lowest/90 backdrop-blur border border-outline-variant px-2 py-1 rounded flex flex-col shadow-sm">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface">CAM 02</span>
+<span class="font-label-mono text-[10px] text-on-surface-variant">ASSEMBLY_LINE_B</span>
+</div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur border border-severity-safe px-2 py-1 rounded flex items-center gap-1 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-severity-safe"></span>
+<span class="font-label-mono text-xs text-severity-safe">SAFE</span>
+</div>
+<div class="absolute bottom-3 right-3 flex flex-col items-end gap-1">
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">FPS: 30.00</span>
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">BITRATE: 4.5Mbps</span>
+</div>
+<div class="absolute inset-0 border-2 border-transparent group-hover:border-primary/50 transition-colors pointer-events-none rounded-lg"></div>
+</div>
+<!-- CAM 03 - CRITICAL -->
+<div class="level-1-panel rounded-lg overflow-hidden relative group border-2 border-severity-critical shadow-[0_0_15px_rgba(220,38,38,0.15)] z-10">
+<img alt="CAM 03 Feed" class="w-full h-full object-cover contrast-100 saturate-100" data-alt="A realistic interior shot of an Indian factory floor from a security camera angle. An Indian male worker is working near a large industrial machine (TruMatic 7000 style). He is wearing a high-visibility vest. A red digital bounding box and polygon overlay represent a Restricted Area around him. Text labels: 'Restricted Area Boundary', 'Worker #07'. Professional, bright lighting. Light theme." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+<div class="absolute inset-0 camera-overlay pointer-events-none"></div>
+<div class="scan-line bg-severity-critical/20" style="animation-duration: 2s;"></div>
+<!-- Red flashing overlay for critical state -->
+<div class="absolute inset-0 bg-severity-critical/5 animate-pulse pointer-events-none"></div>
+<!-- Overlays -->
+<div class="absolute top-3 left-3 bg-severity-critical/90 backdrop-blur border border-severity-critical px-2 py-1 rounded flex flex-col shadow-sm">
+<span class="font-label-mono-bold text-label-mono-bold text-white">CAM 03</span>
+<span class="font-label-mono text-[10px] text-white/90">HEAVY_MACHINERY_Z1</span>
+</div>
+<div class="absolute top-3 right-3 bg-severity-critical backdrop-blur px-3 py-1 rounded flex items-center gap-2 animate-bounce shadow-md">
+<span class="material-symbols-outlined text-white text-sm" style="font-variation-settings: 'FILL' 1;">warning</span>
+<span class="font-label-mono-bold text-sm text-white tracking-widest">CRITICAL</span>
+</div>
+<!-- Risk Metric specific to this view -->
+<div class="absolute bottom-3 left-3 bg-surface-container-lowest/90 backdrop-blur border border-severity-critical p-2 rounded flex flex-col shadow-sm">
+<span class="font-label-mono text-[10px] text-severity-critical uppercase font-bold">Risk Score</span>
+<span class="font-data-metric text-2xl text-severity-critical">86</span>
+</div>
+<div class="absolute bottom-3 right-3 flex flex-col items-end gap-1">
+<span class="font-label-mono text-[10px] text-white bg-severity-critical/80 px-1 rounded shadow-sm">FPS: 24.50 (DROPPING)</span>
+<span class="font-label-mono text-[10px] text-white bg-severity-critical/80 px-1 rounded shadow-sm">BITRATE: 2.1Mbps</span>
+</div>
+</div>
+<!-- CAM 04 - SAFE -->
+<div class="level-1-panel rounded-lg overflow-hidden relative group">
+<img alt="CAM 04 Feed" class="w-full h-full object-cover grayscale-[10%] contrast-100" data-alt="A clean, bright, high-resolution interior shot of a modern industrial warehouse hallway or corridor. The floor is polished concrete. In the middle of the hallway, there is a green digital bounding box overlaid on a worker in a high-visibility vest walking safely. At the top of the box is a small label 'Worker #14'. The style is realistic industrial security camera footage but professional and clean. Light theme colors." src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+<div class="absolute inset-0 camera-overlay pointer-events-none"></div>
+<!-- Overlays -->
+<div class="absolute top-3 left-3 bg-surface-container-lowest/90 backdrop-blur border border-outline-variant px-2 py-1 rounded flex flex-col shadow-sm">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface">CAM 04</span>
+<span class="font-label-mono text-[10px] text-on-surface-variant">LOADING_DOCK_INT</span>
+</div>
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur border border-severity-safe px-2 py-1 rounded flex items-center gap-1 shadow-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-severity-safe"></span>
+<span class="font-label-mono text-xs text-severity-safe">SAFE</span>
+</div>
+<div class="absolute bottom-3 right-3 flex flex-col items-end gap-1">
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">FPS: 30.00</span>
+<span class="font-label-mono text-[10px] text-on-surface bg-surface-container-lowest/80 px-1 rounded border border-outline-variant/50">BITRATE: 5.0Mbps</span>
+</div>
+<div class="absolute inset-0 border-2 border-transparent group-hover:border-primary/50 transition-colors pointer-events-none rounded-lg"></div>
+</div>
+</div>
+</div>
+<!-- Right: Alert Feed -->
+<div class="col-span-3 flex flex-col gap-unit h-full">
+<div class="flex justify-between items-center mb-2">
+<h3 class="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">receipt_long</span>
+                            Event Stream
+                        </h3>
+</div>
+<div class="level-1-panel rounded-lg flex-1 overflow-hidden flex flex-col">
+<!-- Critical Alert Card (Active) -->
+<div class="p-3 border-b border-outline-variant border-l-4 border-l-severity-critical bg-error-container/20 relative">
+<div class="absolute top-2 right-2 text-severity-critical animate-pulse">
+<span class="material-symbols-outlined text-sm">my_location</span>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-mono-bold text-[10px] px-1.5 py-0.5 rounded bg-severity-critical text-white tracking-widest shadow-sm">CRITICAL</span>
+<span class="font-label-mono text-[10px] text-on-surface-variant">JUST NOW</span>
+</div>
+<h4 class="font-body-sm text-body-sm font-semibold text-on-surface leading-tight mb-1">Unsafe Machine Proximity</h4>
+<p class="font-label-mono text-xs text-on-surface-variant mb-2">Worker #07 breach in Restricted Area Z1.</p>
+<div class="grid grid-cols-2 gap-1 mb-3">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-1 flex flex-col">
+<span class="font-label-mono text-[9px] text-on-surface-variant">SOURCE</span>
+<span class="font-label-mono-bold text-xs text-on-surface">CAM 03</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-1 flex flex-col">
+<span class="font-label-mono text-[9px] text-on-surface-variant">RISK INDEX</span>
+<span class="font-label-mono-bold text-xs text-severity-critical">86 (HIGH)</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-severity-critical hover:bg-severity-critical/90 text-white font-label-mono-bold text-xs py-1.5 rounded transition-colors flex items-center justify-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">campaign</span>
+                                    SOUND ALARM
+                                </button>
+</div>
+</div>
+<!-- Warning Alert Card -->
+<div class="p-3 border-b border-outline-variant border-l-4 border-l-severity-warning hover:bg-surface-variant/30 transition-colors cursor-pointer bg-surface-container-lowest">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-mono-bold text-[10px] px-1.5 py-0.5 rounded border border-severity-warning text-severity-warning tracking-widest bg-severity-warning/10">WARNING</span>
+<span class="font-label-mono text-[10px] text-on-surface-variant">-12m</span>
+</div>
+<h4 class="font-body-sm text-body-sm text-on-surface font-semibold leading-tight mb-1">PPE Violation Detected</h4>
+<p class="font-label-mono text-xs text-on-surface-variant mb-1">Hardhat missing near Assembly Line B.</p>
+<div class="flex gap-2 items-center">
+<span class="font-label-mono text-[9px] px-1 bg-surface-container-lowest border border-outline-variant rounded text-on-surface-variant">CAM 02</span>
+</div>
+</div>
+<!-- Info Event Card -->
+<div class="p-3 border-b border-outline-variant hover:bg-surface-variant/30 transition-colors cursor-pointer bg-surface-container-lowest">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-mono text-[10px] text-on-surface-variant">-45m</span>
+</div>
+<h4 class="font-body-sm text-body-sm text-on-surface font-semibold leading-tight mb-1">Routine Shift Change</h4>
+<p class="font-label-mono text-xs text-on-surface-variant mb-1">Sector A Corridor traffic spike normalized.</p>
+<div class="flex gap-2 items-center">
+<span class="font-label-mono text-[9px] px-1 bg-surface-container-lowest border border-outline-variant rounded text-on-surface-variant">CAM 01</span>
+</div>
+</div>
+<!-- Info Event Card -->
+<div class="p-3 border-b border-outline-variant hover:bg-surface-variant/30 transition-colors cursor-pointer bg-surface-container-lowest">
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-mono text-[10px] text-on-surface-variant">-1h 12m</span>
+</div>
+<h4 class="font-body-sm text-body-sm text-on-surface font-semibold leading-tight mb-1">System Diagnostic Complete</h4>
+<p class="font-label-mono text-xs text-on-surface-variant mb-1">All monitoring nodes reporting nominally.</p>
+<div class="flex gap-2 items-center">
+<span class="font-label-mono text-[9px] px-1 bg-surface-container-lowest border border-outline-variant rounded text-on-surface-variant">SYSTEM</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple clock script for dashboard header
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('current-time').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body></html>

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Live Monitoring | One_Eye Safety Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#2563eb",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#dbeafe",
+                        "on-primary-container": "#1e3a8a",
+                        "secondary": "#475569",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#f1f5f9",
+                        "on-secondary-container": "#0f172a",
+                        "tertiary": "#ea580c",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#ffedd5",
+                        "on-tertiary-container": "#7c2d12",
+                        "error": "#dc2626",
+                        "on-error": "#ffffff",
+                        "error-container": "#fee2e2",
+                        "on-error-container": "#7f1d1d",
+                        "background": "#f8fafc",
+                        "on-background": "#0f172a",
+                        "surface": "#ffffff",
+                        "on-surface": "#0f172a",
+                        "surface-variant": "#f1f5f9",
+                        "on-surface-variant": "#334155",
+                        "outline": "#94a3b8",
+                        "outline-variant": "#cbd5e1",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f8fafc",
+                        "surface-container": "#f1f5f9",
+                        "surface-container-high": "#e2e8f0",
+                        "surface-container-highest": "#cbd5e1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-page": "24px",
+                        "gutter": "16px",
+                        "panel-padding": "12px",
+                        "unit": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "label-mono-bold": ["Geist Mono"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-mono": ["Geist Mono"],
+                        "data-metric": ["Geist Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f8fafc; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+
+        .camera-cell {
+            position: relative;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .camera-cell:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .camera-cell.active-focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        }
+        .camera-cell.status-critical {
+            border-color: #dc2626;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+        }
+        .camera-cell.status-warning {
+            border-color: #ea580c;
+            box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+        }
+        
+        .overlay-gradient {
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.85) 100%);
+        }
+
+        .demo-badge {
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4); }
+            70% { box-shadow: 0 0 0 4px rgba(234, 88, 12, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
+        }
+        
+        .video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-sm antialiased h-screen w-screen overflow-hidden flex flex-col selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="bg-surface font-label-mono text-label-mono docked full-width top-0 border-b border-surface-container-high flat no shadows flex justify-between items-center w-full px-margin-page h-14 z-50 shrink-0">
+<div class="flex items-center gap-6">
+<div class="font-headline-md text-headline-md font-bold text-primary tracking-tight">
+            One_Eye Safety Intelligence
+        </div>
+<div class="relative hidden lg:flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant pointer-events-none text-sm" data-icon="search">search</span>
+<input class="bg-surface border border-outline-variant rounded-md pl-9 pr-3 py-1.5 text-on-surface placeholder:text-on-surface-variant focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none w-64 text-xs transition-colors shadow-sm" placeholder="Search cameras, zones, events..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<button aria-label="memory" class="w-8 h-8 rounded-md hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="memory">memory</span>
+</button>
+<button aria-label="database" class="w-8 h-8 rounded-md hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="database">database</span>
+</button>
+<button aria-label="account_tree" class="w-8 h-8 rounded-md hover:bg-surface-variant transition-colors active:scale-95 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="account_tree">account_tree</span>
+</button>
+</div>
+<div class="h-6 w-px bg-outline-variant mx-1"></div>
+<div class="flex items-center gap-3">
+<div class="px-2 py-1 bg-primary-container border border-primary/20 rounded-md text-on-primary-container font-bold flex items-center gap-1.5 text-[10px]">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                3 ACTIVE
+            </div>
+<div class="text-on-surface text-right hidden sm:block">
+<div class="font-bold leading-tight">Operator</div>
+<div class="text-[10px] text-on-surface-variant">Shift B-2</div>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface border border-outline-variant overflow-hidden hover:border-primary transition-colors cursor-pointer active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-on-surface-variant mt-1" data-icon="person">person</span>
+</button>
+</div>
+</div>
+</header>
+<div class="flex flex-1 h-[calc(100vh-3.5rem)] overflow-hidden relative">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low font-label-mono-bold text-label-mono-bold docked left-0 h-full w-64 border-r border-surface-container-high flat no shadows flex flex-col fixed left-0 top-14 py-panel-padding z-40 shrink-0 hidden md:flex">
+<div class="px-4 mb-6 flex items-start gap-3">
+<div class="w-10 h-10 rounded-md bg-surface border border-surface-container-high flex items-center justify-center shrink-0 shadow-sm">
+<span class="material-symbols-outlined text-primary" data-icon="visibility">visibility</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="font-headline-md text-[16px] leading-tight text-on-surface font-bold truncate">ONE_EYE</div>
+<div class="text-[10px] text-on-surface-variant mt-0.5 truncate font-normal">Vigilant v2.4</div>
+</div>
+</div>
+<div class="px-4 mb-4">
+<div class="bg-tertiary-container border border-tertiary/20 text-on-tertiary-container py-1.5 px-2 rounded-md text-[10px] text-center tracking-wider demo-badge flex items-center justify-center gap-1.5 shadow-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="science">science</span>
+            DEMO MODE
+        </div>
+</div>
+<div class="flex-1 flex flex-col gap-1 px-3 overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md bg-primary-container text-on-primary-container font-bold shadow-sm transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="videocam">videocam</span>
+<span>Live Monitoring</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="warning">warning</span>
+<span>Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="history">history</span>
+<span>Events</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="videocam_off">videocam_off</span>
+<span>Cameras</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="polyline">polyline</span>
+<span>Zones</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="insights">insights</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="map">map</span>
+<span>Safety Map</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</div>
+<div class="mt-auto pt-4 px-3 flex flex-col gap-1 border-t border-surface-container-high">
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-md text-on-surface-variant hover:bg-surface hover:text-on-surface transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="terminal">terminal</span>
+<span>Logs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col bg-background relative z-0 h-full overflow-hidden">
+<!-- Toolbar -->
+<div class="h-12 border-b border-surface-container-high bg-surface flex items-center justify-between px-gutter shrink-0">
+<div class="flex items-center gap-4">
+<h1 class="font-label-mono-bold text-on-surface text-sm flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse shadow-sm"></span>
+                LIVE GRID: WAREHOUSE SECTOR A
+            </h1>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-2 text-xs font-label-mono text-on-surface-variant font-medium">
+<span class="flex items-center gap-1 bg-error-container text-on-error-container px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[14px]" data-icon="warning">warning</span> 1 Critical</span>
+<span class="flex items-center gap-1 bg-tertiary-container text-on-tertiary-container px-2 py-0.5 rounded-full ml-1"><span class="material-symbols-outlined text-[14px]" data-icon="error">error</span> 2 Warnings</span>
+</div>
+</div>
+<!-- Grid Controls -->
+<div class="flex items-center gap-1 bg-surface-container border border-surface-container-high rounded-md p-0.5">
+<button class="w-8 h-7 rounded-sm flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface transition-colors" title="1x1 Grid">
+<span class="material-symbols-outlined text-[18px]" data-icon="crop_square">crop_square</span>
+</button>
+<button class="w-8 h-7 rounded-sm flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface transition-colors" title="2x2 Grid">
+<span class="material-symbols-outlined text-[18px]" data-icon="grid_view">grid_view</span>
+</button>
+<button class="w-8 h-7 rounded-sm bg-surface text-primary border border-outline-variant/30 flex items-center justify-center shadow-sm" title="3x3 Grid">
+<span class="material-symbols-outlined text-[18px]" data-icon="grid_on">grid_on</span>
+</button>
+</div>
+</div>
+<!-- Video Grid 3x3 -->
+<div class="flex-1 p-unit overflow-y-auto">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-unit h-full min-h-[600px] p-unit">
+<!-- Camera 1: Critical (Helmet) -->
+<div class="camera-cell status-critical relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A realistic security camera shot of an Indian worker in a warehouse loading area. The worker is an Indian male, not wearing a safety helmet. An amber dashed bounding box is around his head with a label 'NO HELMET DETECTED'." src="https://lh3.googleusercontent.com/aida/AEtjO1V4b15FdmvbVaHzGmUCD1xXhA4H3aywxDD0Vc_PlN0yPo1qJFg0GcIFCA1cRiLDDjuZPYz3CgDI4QG7HqIJIc91R_1R1eCWAgdb0gGWaQ8jka5hxU0EMSOENOg8OKsD7Wq03Uyws_ApfFWTUrMWEm03CCaDSiwpnZax5U8Vip5GVEsS0dNAoMA6gxUqUCKomg_X1HF_59A9zf9j5RQJi3T6nWiJkFiFzw47r25RNUXCAuiLAHDPKR0vSVD5"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<!-- Top Bar -->
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-error" data-icon="videocam">videocam</span>
+                        CAM-WH-LD-01
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-error font-bold">REC</span>
+<span>24 FPS</span>
+<span class="text-on-surface-variant">4.2 Mbps</span>
+</div>
+</div>
+<!-- Bottom Bar (Alert) -->
+<div class="absolute bottom-0 left-0 right-0 p-3 z-10">
+<div class="bg-error-container/95 backdrop-blur-md border border-error/50 rounded-md p-2.5 flex items-center justify-between shadow-lg">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+<div class="font-label-mono-bold text-on-error-container text-[11px] leading-tight">
+<div class="text-error">PPE VIOLATION</div>
+<div class="font-label-mono font-medium text-on-error-container/80 mt-0.5">No Helmet Detected • 00:14</div>
+</div>
+</div>
+<button class="px-3 py-1.5 bg-surface text-on-surface border border-outline-variant/50 rounded-md text-[10px] font-label-mono-bold hover:bg-surface-variant transition-colors shadow-sm">
+                            ACK
+                        </button>
+</div>
+</div>
+</div>
+<!-- Camera 2: Warning (Restricted Area) -->
+<div class="camera-cell status-warning relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A realistic interior shot of an Indian factory floor from a security camera angle. An Indian male worker is working near a large industrial machine." src="https://lh3.googleusercontent.com/aida/AEtjO1WB8kcHDQ-0c0NxWe1b8clCWv8Qj52RtuAQjWPXmYULci6eLv2Wcb00OaPHtnDXGjl95S-H7NX2xSxBbFl8GIrJA54ZYzHRpHuMXYTX85C5VBckq7dzcjInhsHbf8E7nQYmjAPWiBexwzabTef9JYwfHBYbxY_fQaXZWDB4SfLAfD3Kc9ucfMZ-6K3FvhWHFOlHY5OCU8ZkC7YN1ohrUWpYEK1N2X8eurGr_whtQkc84ILLC1gcEA2wZW5h"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="videocam">videocam</span>
+                        CAM-MFG-FL-02
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-primary font-bold">REC</span>
+<span>30 FPS</span>
+<span class="text-on-surface-variant">5.1 Mbps</span>
+</div>
+</div>
+<div class="absolute bottom-3 left-3 right-3 z-10">
+<div class="bg-tertiary-container/95 backdrop-blur-md border border-tertiary/30 rounded-md px-3 py-2 flex items-center gap-2 shadow-lg">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+<span class="font-label-mono-bold text-on-tertiary-container text-[11px]">PROXIMITY WARNING: MCH-TRU-7000</span>
+</div>
+</div>
+</div>
+<!-- Camera 3: Normal -->
+<div class="camera-cell relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A realistic, high-security camera angle shot of an Indian industrial worker in a high-visibility vest and a yellow hard hat." src="https://lh3.googleusercontent.com/aida/AEtjO1WiN0VoEMA5rOkcfxxJBeqHvhvCOpfkgZrCVnS7KRr16D-uPCAYQjAdzb29U4Q5wLwu_I1rs14mUYskT01J0fcthzZJzpX4p-NJSRDv4Sl4HqAvL8o6mBpsa892zdaSrCf15cwVltyWtG3jKIfZFGrDoLL0f1aGIBsxdlWiQncQEdZ-Ia8kTo70zx9czlB4eXIu1myQKtofz7CBRTvvALAYKJHDPnqyhzrH_xaYTutZGc2aEuiOv1VaYOi-"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="videocam">videocam</span>
+                        CAM-WH-COR-03
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-primary font-bold">REC</span>
+<span>24 FPS</span>
+<span class="text-on-surface-variant">3.8 Mbps</span>
+</div>
+</div>
+<div class="absolute bottom-3 left-3 z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2.5 py-1.5 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                        Tracking: 1 ID
+                    </div>
+</div>
+</div>
+<!-- Camera 4: Normal Assembly -->
+<div class="camera-cell relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A realistic, high-angle security camera view of a modern electronics assembly line in India." src="https://lh3.googleusercontent.com/aida/AEtjO1UrUfgV3XDBx9iHlKEh4x48YT1d3QVFnuKGbpU6wicvRzOcZmzFy5LhiPhWVa1aj8syg3EWBpQ1CrsWFFs2GOVMqFkWzCtTnKpGZMM2zG8ERa6BjfYXUZLi3_KsqA9B-t5-5EenIcJRD0D3tqcQgDm4sswVjFP6GL-cIrsLfumcOkCkYpu1wNJRZL2G7If5iYwcND2ZnZ_vfZVbuZDDqO2Mv3GnALjl4Wo0mmqY1L7T_DOWuhQe8FQFM7dZ"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="videocam">videocam</span>
+                        CAM-ASM-L1-04
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-primary font-bold">REC</span>
+<span>30 FPS</span>
+<span class="text-on-surface-variant">6.0 Mbps</span>
+</div>
+</div>
+</div>
+<!-- Camera 5: Normal Hallway -->
+<div class="camera-cell active-focus relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A clean, bright, high-resolution interior shot of a modern industrial warehouse hallway or corridor." src="https://lh3.googleusercontent.com/aida/AEtjO1VodPS6VEqHk5N6vqRBfR6zgAp9GQbO4MD6jFFmpK93YmAc_srHqJOXFRzghZvORbFOghVg20B7ATsuNHsPjhBUpoLjDs2XPOh6p5533YI3VnKhlrTofJhJeGp1R1zKi0bTXJJXxhmPoxscyCFfy0W5G73Jur9DR_qhBfb2J1VgbYBRI03Yjg-PvPaSxmXzqnixYYf94rFErgMng_iL7EgbpShgZhrDXtPKkcsgM7MjezGMvI3qFix_g3Z6"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-primary/10 backdrop-blur-md border border-primary/50 rounded-md px-2 py-1 text-[10px] text-primary flex items-center gap-1.5 shadow-sm font-bold">
+<span class="material-symbols-outlined text-[14px]" data-icon="center_focus_strong">center_focus_strong</span>
+                        CAM-WH-COR-05 [FOCUS]
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-primary font-bold">REC</span>
+<span>60 FPS</span>
+<span class="text-on-surface-variant">8.2 Mbps</span>
+</div>
+</div>
+<!-- PTZ Controls Overlay (visible on active) -->
+<div class="absolute inset-0 bg-surface/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20 pointer-events-none">
+<div class="bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-full p-2 grid grid-cols-3 gap-1 pointer-events-auto shadow-xl">
+<div></div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="keyboard_arrow_up">keyboard_arrow_up</span></button>
+<div></div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="keyboard_arrow_left">keyboard_arrow_left</span></button>
+<button class="w-8 h-8 rounded-full bg-primary/10 text-primary border border-primary/30 flex items-center justify-center"><span class="material-symbols-outlined text-[16px]" data-icon="control_camera">control_camera</span></button>
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="keyboard_arrow_right">keyboard_arrow_right</span></button>
+<div></div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-on-surface transition-colors"><span class="material-symbols-outlined text-[18px]" data-icon="keyboard_arrow_down">keyboard_arrow_down</span></button>
+<div></div>
+</div>
+</div>
+</div>
+<!-- Camera 6: Normal Assembly -->
+<div class="camera-cell relative group cursor-pointer">
+<div class="absolute inset-0">
+<img class="video-feed" data-alt="A realistic, bright interior shot of a modern electronics assembly line or automated factory floor from a high security-camera angle." src="https://lh3.googleusercontent.com/aida/AEtjO1WDy28FvGJzmzRHp4KxGK788Mnli-BHEHcCukGc3ZuTYqVvjQ1t27MbTbh8yrJ7b2-b4qxDD9vIpQD8b8qbcV--XXtLSr5aaDZEn4tpz8fwqotT1Cos15WaVKbm3Nn19A7SjKentEc9uJrmpsyRIdEdtpKnqjHJmEk2TObNHPlMxd2NagqcwwpiKq5CIsn47j3EWzDcBUkCcCRc65sGBnn5MWCHWPBoedoUDDiMS-DooQ8X5aeKeMfNaIwd"/>
+<div class="absolute inset-0 overlay-gradient pointer-events-none"></div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="videocam">videocam</span>
+                        CAM-ASM-L2-06
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-primary font-bold">REC</span>
+<span>30 FPS</span>
+<span class="text-on-surface-variant">5.5 Mbps</span>
+</div>
+</div>
+</div>
+<!-- Camera 7: Offline -->
+<div class="camera-cell relative bg-surface-variant flex items-center justify-center">
+<div class="text-center z-10">
+<span class="material-symbols-outlined text-[48px] text-outline-variant mb-2" data-icon="videocam_off">videocam_off</span>
+<div class="font-label-mono-bold text-outline-variant text-xs">NO SIGNAL</div>
+<div class="font-label-mono text-outline-variant/80 text-[10px] mt-1">Reconnecting...</div>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/80 backdrop-blur-md border border-outline-variant/30 rounded-md px-2 py-1 text-[10px] text-outline flex items-center gap-1.5 opacity-80 font-medium">
+<span class="material-symbols-outlined text-[14px]" data-icon="videocam_off">videocam_off</span>
+                        CAM-EXT-N-07
+                    </div>
+<div class="font-label-mono bg-surface/80 backdrop-blur-md border border-outline-variant/30 rounded-md px-2 py-1 text-[10px] text-outline flex items-center gap-2 opacity-80 font-medium">
+<span class="font-bold">OFFLINE</span>
+<span>-- FPS</span>
+</div>
+</div>
+</div>
+<!-- Camera 8: Warning (Zone breach) -->
+<div class="camera-cell status-warning relative group cursor-pointer">
+<div class="absolute inset-0 bg-surface-variant flex items-center justify-center">
+<div class="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-on-surface to-transparent" style="background-size: 8px 8px; background-image: radial-gradient(circle, #0f172a 1px, transparent 1px);"></div>
+<span class="font-label-mono text-outline-variant text-xs">STREAM LOADING...</span>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-semibold">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="videocam">videocam</span>
+                        CAM-LD-BAY-08
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-tertiary font-bold animate-pulse">BUFFERING</span>
+</div>
+</div>
+</div>
+<!-- Camera 9: Normal -->
+<div class="camera-cell relative group cursor-pointer">
+<div class="absolute inset-0 bg-surface-variant flex items-center justify-center">
+<div class="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-on-surface to-transparent" style="background-size: 8px 8px; background-image: radial-gradient(circle, #0f172a 1px, transparent 1px);"></div>
+<span class="font-label-mono text-outline-variant text-xs">STREAM PAUSED</span>
+</div>
+<div class="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-1.5 shadow-sm font-medium">
+<span class="material-symbols-outlined text-[14px] text-outline-variant" data-icon="pause_circle">pause_circle</span>
+                        CAM-EXT-S-09
+                    </div>
+<div class="font-label-mono bg-surface/95 backdrop-blur-md border border-outline-variant/50 rounded-md px-2 py-1 text-[10px] text-on-surface flex items-center gap-2 shadow-sm font-medium">
+<span class="text-outline-variant">PAUSED</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

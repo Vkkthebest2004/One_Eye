@@ -1,0 +1,133 @@
+import logging
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass
+from shapely.geometry import Point, Polygon
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ZoneDefinition:
+    id: str
+    name: str
+    camera_id: str
+    polygon_points: List[Tuple[float, float]] # [(x1, y1), (x2, y2), ...]
+    severity: int = 80 # 0-100
+    allowed_classes: List[str] = None
+    active: bool = True
+
+    def __post_init__(self):
+        if self.allowed_classes is None:
+            self.allowed_classes = []
+        if len(self.polygon_points) >= 3:
+            self._shapely_polygon = Polygon(self.polygon_points)
+        else:
+            self._shapely_polygon = None
+
+    def contains_point(self, x: float, y: float) -> bool:
+        if not self.active or self._shapely_polygon is None:
+            return False
+        point = Point(x, y)
+        return self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point)
+
+
+@dataclass
+class ZoneEvent:
+    worker_id: int
+    zone_id: str
+    zone_name: str
+    severity: int
+    state: str # "ENTERED", "INSIDE", "EXITED"
+    foot_anchor: Tuple[float, float]
+    inside_duration_sec: float
+
+
+class ZoneEngine:
+    """
+    Restricted Zones and Danger Boundary Engine.
+    Uses foot contact anchor and Shapely 2D polygon intersection.
+    """
+    def __init__(self):
+        # zone_id -> ZoneDefinition
+        self.zones: Dict[str, ZoneDefinition] = {}
+        # (worker_id, zone_id) -> {'enter_time': float, 'last_seen': float, 'state': str}
+        self.worker_zone_states: Dict[Tuple[int, str], Dict] = {}
+
+    def register_zone(self, zone: ZoneDefinition):
+        self.zones[zone.id] = zone
+        logger.info(f"Registered zone '{zone.name}' (ID: {zone.id}) with {len(zone.polygon_points)} vertices")
+
+    def unregister_zone(self, zone_id: str):
+        if zone_id in self.zones:
+            del self.zones[zone_id]
+
+    def clear_zones(self, camera_id: Optional[str] = None):
+        if camera_id:
+            self.zones = {zid: z for zid, z in self.zones.items() if z.camera_id != camera_id}
+        else:
+            self.zones.clear()
+
+    def evaluate_worker(
+        self,
+        worker_id: int,
+        foot_x: float,
+        foot_y: float,
+        timestamp: float,
+        camera_id: str
+    ) -> List[ZoneEvent]:
+        events: List[ZoneEvent] = []
+        relevant_zones = [z for z in self.zones.values() if z.camera_id == camera_id and z.active]
+
+        for zone in relevant_zones:
+            is_inside = zone.contains_point(foot_x, foot_y)
+            state_key = (worker_id, zone.id)
+            prev_state_info = self.worker_zone_states.get(state_key)
+
+            if is_inside:
+                if prev_state_info is None:
+                    # Fresh breach
+                    self.worker_zone_states[state_key] = {
+                        "enter_time": timestamp,
+                        "last_seen": timestamp,
+                        "state": "ENTERED"
+                    }
+                    events.append(ZoneEvent(
+                        worker_id=worker_id,
+                        zone_id=zone.id,
+                        zone_name=zone.name,
+                        severity=zone.severity,
+                        state="ENTERED",
+                        foot_anchor=(foot_x, foot_y),
+                        inside_duration_sec=0.0
+                    ))
+                else:
+                    # Continued presence
+                    enter_time = prev_state_info["enter_time"]
+                    duration = timestamp - enter_time
+                    prev_state_info["last_seen"] = timestamp
+                    prev_state_info["state"] = "INSIDE"
+                    events.append(ZoneEvent(
+                        worker_id=worker_id,
+                        zone_id=zone.id,
+                        zone_name=zone.name,
+                        severity=zone.severity,
+                        state="INSIDE",
+                        foot_anchor=(foot_x, foot_y),
+                        inside_duration_sec=round(duration, 1)
+                    ))
+            else:
+                if prev_state_info is not None:
+                    # Worker just exited
+                    duration = timestamp - prev_state_info["enter_time"]
+                    del self.worker_zone_states[state_key]
+                    events.append(ZoneEvent(
+                        worker_id=worker_id,
+                        zone_id=zone.id,
+                        zone_name=zone.name,
+                        severity=zone.severity,
+                        state="EXITED",
+                        foot_anchor=(foot_x, foot_y),
+                        inside_duration_sec=round(duration, 1)
+                    ))
+
+        return events

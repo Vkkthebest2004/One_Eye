@@ -1,0 +1,9 @@
+[
+    {
+        "name": "Restricted Zone Entry",
+        "object": "person",
+        "zone": "Zone A",
+        "severity": "HIGH_RISK",
+        "enabled": true
+    }
+]

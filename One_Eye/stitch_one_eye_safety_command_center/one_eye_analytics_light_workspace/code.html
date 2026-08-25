@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Safety Analytics | ONE_EYE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface": "#f7f9fb",
+                        "surface-dim": "#d8dadc",
+                        "surface-bright": "#f7f9fb",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "surface-container": "#ebeef0",
+                        "surface-container-high": "#e6e8eb",
+                        "surface-container-highest": "#e0e2e5",
+                        "primary": "#2563eb",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#dbeafe",
+                        "on-primary-container": "#1e3a8a",
+                        "secondary": "#475569",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#f1f5f9",
+                        "on-secondary-container": "#0f172a",
+                        "tertiary": "#0d9488",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#ccfbf1",
+                        "on-tertiary-container": "#115e59",
+                        "error": "#dc2626",
+                        "on-error": "#ffffff",
+                        "error-container": "#fee2e2",
+                        "on-error-container": "#7f1d1d",
+                        "background": "#f7f9fb",
+                        "on-background": "#0f172a",
+                        "on-surface": "#0f172a",
+                        "on-surface-variant": "#475569",
+                        "outline": "#94a3b8",
+                        "outline-variant": "#cbd5e1"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        "margin-page": "24px",
+                        "gutter": "16px",
+                        "panel-padding": "16px",
+                        "unit": "4px"
+                    },
+                    fontFamily: {
+                        "headline-md": ["Geist"],
+                        "label-mono-bold": ["Geist Mono"],
+                        "body-sm": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "label-mono": ["Geist Mono"],
+                        "data-metric": ["Geist Mono"]
+                    },
+                    fontSize: {
+                        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+                        "label-mono-bold": ["12px", { lineHeight: "16px", fontWeight: "700" }],
+                        "body-sm": ["14px", { lineHeight: "20px", fontWeight: "400" }],
+                        "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "label-mono": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "500" }],
+                        "data-metric": ["32px", { lineHeight: "40px", letterSpacing: "-0.05em", fontWeight: "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .panel {
+            background-color: #ffffff;
+            border: 1px solid #e0e2e5;
+            border-radius: 0.5rem;
+        }
+        .panel-active {
+            border-color: #2563eb;
+            box-shadow: inset 0 0 0 1px #2563eb;
+        }
+        .panel-alert {
+            box-shadow: 0 0 4px rgba(220, 38, 38, 0.2);
+        }
+        .alert-card-critical {
+            border-left: 4px solid #dc2626;
+        }
+        .chart-bar {
+            transition: height 0.3s ease;
+        }
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface h-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container text-primary font-label-mono-bold text-label-mono-bold docked left-0 h-full w-64 border-r border-outline-variant flat no shadows flex flex-col h-screen fixed left-0 top-0 py-panel-padding z-40">
+<div class="px-gutter mb-8">
+<h1 class="font-headline-md text-headline-md text-primary">ONE_EYE</h1>
+<p class="text-on-surface-variant font-label-mono text-label-mono mt-1">Vigilant v2.4</p>
+<div class="mt-4 px-2 py-1 bg-surface-variant text-on-surface-variant inline-block text-[10px] rounded border border-outline-variant">DEMO MODE</div>
+</div>
+<div class="flex-1 overflow-y-auto">
+<ul class="space-y-1 px-2">
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">dashboard</span>Dashboard</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">videocam</span>Live Monitoring</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">warning</span>Alerts</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">history</span>Events</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">videocam_off</span>Cameras</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">polyline</span>Zones</a></li>
+<li><a class="flex items-center px-3 py-2 rounded bg-secondary-container text-on-secondary-container border-l-2 border-primary hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">insights</span>Analytics</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">map</span>Safety Map</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">settings</span>Settings</a></li>
+</ul>
+</div>
+<div class="mt-auto px-2 pb-4">
+<ul class="space-y-1">
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">help</span>Support</a></li>
+<li><a class="flex items-center px-3 py-2 rounded text-on-surface-variant hover:bg-surface-variant transition-all active:opacity-80" href="#"><span class="material-symbols-outlined mr-3">terminal</span>Logs</a></li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="ml-64 flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface text-primary font-label-mono text-label-mono docked full-width top-0 border-b border-outline-variant flat no shadows flex justify-between items-center w-full px-margin-page h-14 z-50 shrink-0">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md font-bold text-primary tracking-tight">One_Eye Safety Intelligence</span>
+<div class="relative hidden md:block">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
+<input class="bg-surface-container border-outline-variant text-on-surface font-label-mono text-label-mono rounded pl-8 pr-3 py-1 focus:border-primary focus:ring-1 focus:ring-primary w-64 h-8" placeholder="Search analytics..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95"><span class="material-symbols-outlined text-[18px]">memory</span></button>
+<button class="w-8 h-8 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95"><span class="material-symbols-outlined text-[18px]">database</span></button>
+<button class="w-8 h-8 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95"><span class="material-symbols-outlined text-[18px]">account_tree</span></button>
+</div>
+<div class="h-6 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-2">
+<span class="bg-primary/10 border border-primary text-primary px-2 py-0.5 rounded text-[10px] font-label-mono-bold">3 ACTIVE</span>
+<div class="flex items-center gap-2 ml-2 hover:bg-surface-container p-1 rounded cursor-pointer transition-colors">
+<span class="font-label-mono text-label-mono text-on-surface-variant">Operator</span>
+<img alt="Operator profile photo" class="w-6 h-6 rounded-full object-cover" data-alt="A small, circular avatar portrait of a security operator in a dimly lit control room setting, technical cyberpunk aesthetic, high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbQQe5jLlBWFteaAm4xGUwInMWOIBpIfrpup4oLaeXZw_2nIDz52CpF6aebVeVAnxiNy8w-930rg6dOSipqSvfUZW2dIocfJGjnVeZM8Dv2Y7lFNO7qpoTlrvrjhStc4dns2Hr36MNSgYTe88rePVd7WaRfD-e86iFKYfM96IJgDOxBzeIv0Eu1XSubLpBWxy6j3TxsO-dAAe8S23V7qfvijLrwTidMwAXdxHDdzDlG_Bl84Ic5DRdsw"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Dashboard Canvas -->
+<div class="flex-1 overflow-y-auto p-margin-page bg-surface">
+<!-- Context Header -->
+<div class="flex justify-between items-end mb-gutter">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-1">Safety Analytics Overview</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Comprehensive risk and hazard analysis across all monitored zones.</p>
+</div>
+<div class="flex bg-surface-container-highest rounded p-1">
+<button class="px-4 py-1.5 rounded text-on-surface-variant font-label-mono text-label-mono hover:bg-surface-container">Today</button>
+<button class="px-4 py-1.5 rounded bg-surface border border-outline-variant text-primary font-label-mono text-label-mono">7 Days</button>
+<button class="px-4 py-1.5 rounded text-on-surface-variant font-label-mono text-label-mono hover:bg-surface-container">30 Days</button>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid grid-cols-12 gap-gutter auto-rows-min">
+<!-- KPI Row (Top 12 cols, 5 cells) -->
+<div class="col-span-12 grid grid-cols-5 gap-gutter">
+<!-- Total Events -->
+<div class="panel p-panel-padding flex flex-col justify-between h-24">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant uppercase tracking-wider">Total Events</span>
+<div class="flex items-end justify-between">
+<span class="font-data-metric text-data-metric text-on-surface">1,204</span>
+<span class="font-label-mono text-label-mono text-primary flex items-center"><span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>12%</span>
+</div>
+</div>
+<!-- Critical Events -->
+<div class="panel p-panel-padding flex flex-col justify-between h-24 alert-card-critical panel-alert">
+<span class="font-label-mono-bold text-label-mono-bold text-error uppercase tracking-wider">Critical Events</span>
+<div class="flex items-end justify-between">
+<span class="font-data-metric text-data-metric text-error">42</span>
+<span class="font-label-mono text-label-mono text-error flex items-center"><span class="material-symbols-outlined text-[14px] mr-1">arrow_upward</span>8%</span>
+</div>
+</div>
+<!-- Avg Risk -->
+<div class="panel p-panel-padding flex flex-col justify-between h-24">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant uppercase tracking-wider">Avg Risk Score</span>
+<div class="flex items-end justify-between">
+<span class="font-data-metric text-data-metric text-tertiary">68.5</span>
+<span class="font-label-mono text-label-mono text-outline flex items-center"><span class="material-symbols-outlined text-[14px] mr-1">horizontal_rule</span>--</span>
+</div>
+</div>
+<!-- Avg Exposure -->
+<div class="panel p-panel-padding flex flex-col justify-between h-24">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant uppercase tracking-wider">Avg Exposure Time</span>
+<div class="flex items-end justify-between">
+<span class="font-data-metric text-data-metric text-on-surface">04m 12s</span>
+<span class="font-label-mono text-label-mono text-primary flex items-center"><span class="material-symbols-outlined text-[14px] mr-1">arrow_downward</span>3%</span>
+</div>
+</div>
+<!-- Most Frequent -->
+<div class="panel p-panel-padding flex flex-col justify-between h-24">
+<span class="font-label-mono-bold text-label-mono-bold text-on-surface-variant uppercase tracking-wider">Top Hazard</span>
+<div class="flex flex-col mt-2">
+<span class="font-body-sm text-body-sm font-semibold text-on-surface truncate">Unsecured Load</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant mt-1">Zone B-North</span>
+</div>
+</div>
+</div>
+<!-- Main Charts Area -->
+<div class="col-span-8 grid grid-rows-2 gap-gutter h-[600px]">
+<!-- Risk Trend Line Chart -->
+<div class="panel p-panel-padding flex flex-col">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-label-mono-bold text-label-mono-bold text-on-surface uppercase">Risk Trend Analysis</h3>
+<button class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-[18px]">more_horiz</span></button>
+</div>
+<div class="flex-1 relative border-b border-l border-outline-variant flex items-end justify-between px-2 pb-1 pt-4">
+<!-- Y Axis Labels -->
+<div class="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] font-label-mono text-on-surface-variant -ml-6 pb-6">
+<span>100</span>
+<span>75</span>
+<span>50</span>
+<span>25</span>
+<span>0</span>
+</div>
+<!-- Fake SVG Line Chart -->
+<svg class="absolute inset-0 w-full h-full p-4" preserveaspectratio="none" viewbox="0 0 100 100">
+<polyline fill="none" points="0,80 10,60 20,65 30,40 40,50 50,20 60,35 70,10 80,45 90,55 100,30" stroke="#2563eb" stroke-width="2"></polyline>
+<polyline fill="none" points="0,90 10,85 20,88 30,75 40,80 50,60 60,65 70,50 80,70 90,75 100,65" stroke="#dc2626" stroke-dasharray="4" stroke-width="1.5"></polyline>
+<path d="M0,80 L10,60 L20,65 L30,40 L40,50 L50,20 L60,35 L70,10 L80,45 L90,55 L100,30 L100,100 L0,100 Z" fill="url(#grad1)" opacity="0.1"></path>
+<defs>
+<lineargradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#2563eb;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+</svg>
+<!-- X Axis Labels -->
+<div class="absolute bottom-0 left-0 w-full flex justify-between text-[10px] font-label-mono text-on-surface-variant px-4 translate-y-4">
+<span>Mon</span>
+<span>Tue</span>
+<span>Wed</span>
+<span>Thu</span>
+<span>Fri</span>
+<span>Sat</span>
+<span>Sun</span>
+</div>
+</div>
+</div>
+<!-- Hazards by Type Bar Chart -->
+<div class="panel p-panel-padding flex flex-col">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-label-mono-bold text-label-mono-bold text-on-surface uppercase">Hazards by Type</h3>
+<div class="flex gap-2">
+<span class="flex items-center text-[10px] font-label-mono text-on-surface-variant"><div class="w-2 h-2 bg-primary rounded-full mr-1"></div> Critical</span>
+<span class="flex items-center text-[10px] font-label-mono text-on-surface-variant"><div class="w-2 h-2 bg-surface-container-high rounded-full mr-1"></div> Minor</span>
+</div>
+</div>
+<div class="flex-1 flex items-end gap-2 border-b border-outline-variant pb-1 px-4 relative">
+<!-- Y Axis Labels -->
+<div class="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] font-label-mono text-on-surface-variant -ml-6 pb-6">
+<span>500</span>
+<span>250</span>
+<span>0</span>
+</div>
+<!-- Bars -->
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-primary chart-bar rounded-t-[4px]" style="height: 85%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">Unsecured</div>
+</div>
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-primary chart-bar rounded-t-[4px]" style="height: 60%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">PPE Miss</div>
+</div>
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-surface-container-highest border border-outline-variant chart-bar rounded-t-[4px]" style="height: 40%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">Proximity</div>
+</div>
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-primary chart-bar rounded-t-[4px]" style="height: 75%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">Speeding</div>
+</div>
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-surface-container-highest border border-outline-variant chart-bar rounded-t-[4px]" style="height: 25%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">Obstruction</div>
+</div>
+<div class="flex-1 flex flex-col justify-end group">
+<div class="w-full bg-surface-container-highest border border-outline-variant chart-bar rounded-t-[4px]" style="height: 15%;"></div>
+<div class="text-center mt-2 text-[10px] font-label-mono text-on-surface-variant rotate-45 origin-left truncate w-8">Spill</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar List -->
+<div class="col-span-4 panel p-panel-padding h-[600px] flex flex-col">
+<h3 class="font-label-mono-bold text-label-mono-bold text-on-surface uppercase mb-4 flex items-center justify-between">
+                        Camera Risk Ranking
+                        <span class="material-symbols-outlined text-[16px] text-on-surface-variant">sort</span>
+</h3>
+<div class="flex-1 overflow-y-auto pr-2 space-y-2">
+<!-- Rank Items -->
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-error/30 hover:border-error transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">01</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 03</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Loading Dock A</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error w-[85%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-error w-8 text-right">85</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-tertiary/30 hover:border-tertiary transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">02</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 07</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">South Corridor</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-[71%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-tertiary w-8 text-right">71</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-tertiary/30 hover:border-tertiary transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">03</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 12</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Assembly Line 2</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-[64%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-tertiary w-8 text-right">64</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-outline-variant/30 hover:border-outline-variant transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">04</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 01</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Main Entrance</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[52%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-on-surface w-8 text-right">52</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-outline-variant/30 hover:border-outline-variant transition-colors cursor-pointer group">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">05</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 09</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Storage Sector B</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[48%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-on-surface w-8 text-right">48</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-2 bg-surface-container rounded border border-outline-variant/30 hover:border-outline-variant transition-colors cursor-pointer group opacity-70">
+<div class="flex items-center gap-3">
+<div class="font-label-mono text-[10px] text-on-surface-variant w-4">06</div>
+<div class="flex flex-col">
+<span class="font-label-mono-bold text-on-surface text-[13px] group-hover:text-primary transition-colors">CAM 15</span>
+<span class="font-body-sm text-[11px] text-on-surface-variant">Perimeter West</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-16 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-outline-variant w-[20%]"></div>
+</div>
+<span class="font-data-metric text-[16px] text-on-surface-variant w-8 text-right">20</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

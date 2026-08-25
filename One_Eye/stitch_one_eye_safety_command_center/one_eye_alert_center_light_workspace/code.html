@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Active Alerts - ONE_EYE Safety Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-variant": "#e2e8f0",
+                        "on-primary-fixed": "#1e3a8a",
+                        "on-error": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#0f172a",
+                        "error": "#ef4444",
+                        "surface": "#ffffff",
+                        "primary-fixed": "#dbeafe",
+                        "on-secondary-fixed-variant": "#334155",
+                        "background": "#f8fafc",
+                        "tertiary-container": "#f97316",
+                        "on-surface-variant": "#475569",
+                        "inverse-primary": "#60a5fa",
+                        "primary": "#2563eb",
+                        "outline": "#94a3b8",
+                        "surface-container": "#f1f5f9",
+                        "on-error-container": "#991b1b",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#fdba74",
+                        "secondary": "#64748b",
+                        "on-primary-fixed-variant": "#1d4ed8",
+                        "on-secondary-fixed": "#0f172a",
+                        "surface-container-low": "#f8fafc",
+                        "secondary-fixed-dim": "#94a3b8",
+                        "surface-bright": "#ffffff",
+                        "on-secondary-container": "#0f172a",
+                        "surface-dim": "#e2e8f0",
+                        "secondary-container": "#f1f5f9",
+                        "tertiary-fixed": "#ffedd5",
+                        "inverse-surface": "#0f172a",
+                        "on-primary-container": "#1e3a8a",
+                        "outline-variant": "#cbd5e1",
+                        "surface-tint": "#2563eb",
+                        "secondary-fixed": "#e2e8f0",
+                        "on-surface": "#0f172a",
+                        "primary-fixed-dim": "#93c5fd",
+                        "error-container": "#fee2e2",
+                        "surface-container-high": "#e2e8f0",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "primary-container": "#dbeafe",
+                        "on-tertiary-container": "#7c2d12",
+                        "on-tertiary-fixed-variant": "#9a3412",
+                        "tertiary": "#f97316",
+                        "surface-container-highest": "#cbd5e1",
+                        "inverse-on-surface": "#f1f5f9",
+                        "on-tertiary-fixed": "#431407"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-page": "24px",
+                        "gutter": "16px",
+                        "panel-padding": "16px",
+                        "unit": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist", "sans-serif"],
+                        "label-mono-bold": ["Geist", "sans-serif"],
+                        "body-sm": ["Geist", "sans-serif"],
+                        "display-lg": ["Geist", "sans-serif"],
+                        "label-mono": ["Geist", "sans-serif"],
+                        "data-metric": ["Geist", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-mono-bold": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-mono": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "data-metric": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap');
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+        .critical-pulse {
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-sm antialiased h-screen flex overflow-hidden">
+<!-- SideNavBar (Hidden on Mobile) -->
+<nav class="hidden md:flex flex-col h-screen fixed left-0 top-0 py-panel-padding z-40 bg-surface border-r border-outline-variant docked left-0 h-full w-64">
+<div class="px-margin-page mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-3xl">policy</span>
+<div>
+<div class="font-headline-md text-headline-md text-primary tracking-tight">ONE_EYE</div>
+<div class="font-label-mono text-label-mono text-on-surface-variant">Vigilant v2.4</div>
+</div>
+</div>
+<div class="flex flex-col gap-1 px-4 flex-grow overflow-y-auto">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-mono-bold text-label-mono-bold">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">videocam</span>
+<span class="font-label-mono-bold text-label-mono-bold">Live Monitoring</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-container text-on-primary-container border-l-2 border-primary hover:bg-primary-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined filled-icon">warning</span>
+<span class="font-label-mono-bold text-label-mono-bold">Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-mono-bold text-label-mono-bold">Events</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">videocam_off</span>
+<span class="font-label-mono-bold text-label-mono-bold">Cameras</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">polyline</span>
+<span class="font-label-mono-bold text-label-mono-bold">Zones</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-label-mono-bold text-label-mono-bold">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="font-label-mono-bold text-label-mono-bold">Safety Map</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all active:opacity-80" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-mono-bold text-label-mono-bold">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-4 py-4 border-t border-outline-variant flex flex-col gap-2">
+<button class="w-full py-2 bg-surface-container text-on-surface-variant border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-variant transition-colors">
+                DEMO MODE
+            </button>
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-label-mono-bold text-label-mono-bold">Support</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-label-mono-bold text-label-mono-bold">Logs</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar (Mobile Only) -->
+<header class="md:hidden flex justify-between items-center w-full px-margin-page h-14 z-50 bg-surface border-b border-outline-variant docked full-width top-0">
+<div class="font-headline-md text-headline-md font-bold text-primary tracking-tight">One_Eye Safety Intelligence</div>
+<div class="flex items-center gap-4 text-primary">
+<span class="material-symbols-outlined cursor-pointer active:scale-95">menu</span>
+</div>
+</header>
+<!-- TopAppBar (Desktop Data/Context Bar) -->
+<div class="hidden md:flex flex justify-between items-center w-full px-margin-page h-14 z-50 bg-surface border-b border-outline-variant docked full-width top-0">
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container border border-outline-variant rounded-DEFAULT pl-8 pr-4 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none placeholder-on-surface-variant w-64 font-label-mono" placeholder="Search alerts..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95 p-1 rounded-DEFAULT">memory</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95 p-1 rounded-DEFAULT">database</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer active:scale-95 p-1 rounded-DEFAULT">account_tree</span>
+</div>
+<div class="flex items-center gap-3 border-l border-outline-variant pl-6">
+<div class="bg-error-container text-on-error-container border border-error/30 px-2 py-0.5 rounded-DEFAULT font-label-mono-bold text-label-mono-bold">3 ACTIVE</div>
+<div class="font-label-mono text-label-mono text-on-surface-variant">Operator</div>
+<div class="w-8 h-8 rounded-full bg-surface-variant border border-outline-variant flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A small, stylized profile portrait of a generic industrial operator wearing minimal safety gear against a dark, metallic background. The lighting is dramatic and moody, fitting a high-tech surveillance command center aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBv3SJEO2NECPuurAqSQDcH2IHj56nQxDJbzn5sH6_O_-DXQzmZ58OPqp6_QC6oy4by1qSPoWqD2ykLH1YunRWotYw1pn4iCMMJMpT9rd6kOJW82_A_ur7I_JFJVH2tcQn_yFHyZJc9ElOxif1_5P9UTQOIpTzSyzS5v5ly3S8mD0xG-ulEoCkvs2LoUyUoQJoDtJtC7pmqOOnkfirUJEv2aAOekZ8e8qzSQA3DS0sqnGKZBv6vTZeSyg"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Canvas -->
+<div class="flex-1 overflow-y-auto p-margin-page bg-background">
+<!-- Header & Filters -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface mb-1">Active Alerts</h1>
+<p class="font-label-mono text-label-mono text-on-surface-variant">Monitoring unresolved incidents across all sectors.</p>
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-1.5 bg-primary-container text-on-primary-container border border-primary/30 rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-primary hover:text-on-primary transition-colors">All</button>
+<button class="px-3 py-1.5 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors">Critical</button>
+<button class="px-3 py-1.5 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors">High</button>
+<button class="px-3 py-1.5 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors">Medium</button>
+<button class="px-3 py-1.5 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors">Unresolved</button>
+</div>
+</div>
+<!-- Alerts Grid/List -->
+<div class="flex flex-col gap-unit">
+<!-- Critical Alert Row -->
+<div class="bg-surface border-l-4 border-l-error border border-outline-variant rounded-DEFAULT p-panel-padding flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative overflow-hidden critical-pulse group hover:shadow-md transition-shadow">
+<div class="absolute inset-0 bg-error/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex items-center gap-4 min-w-[250px]">
+<div class="w-12 h-12 rounded-DEFAULT bg-error-container border border-error/20 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-error text-2xl">warning</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-error text-on-error px-1.5 py-0.5 rounded-sm font-label-mono-bold text-[10px] uppercase leading-none">CRITICAL</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:42:05 AM</span>
+</div>
+<h3 class="font-body-sm font-semibold text-on-surface">PPE Violation: Hard Hat Missing</h3>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-8 flex-1 w-full lg:w-auto text-sm">
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Subject</div>
+<div class="font-label-mono-bold text-on-surface">W-492 (Contractor)</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Camera</div>
+<div class="font-label-mono-bold text-on-surface">CAM-Z3-North</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Risk Score</div>
+<div class="font-label-mono-bold text-error flex items-center gap-1">
+                                98.5 <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+<button class="flex-1 lg:flex-none px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span> Evidence
+                        </button>
+<button class="flex-1 lg:flex-none px-4 py-2 bg-primary text-on-primary rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-primary/90 transition-colors shadow-sm">
+                            Resolve
+                        </button>
+</div>
+</div>
+<!-- High Alert Row -->
+<div class="bg-surface border-l-4 border-l-tertiary-container border border-outline-variant rounded-DEFAULT p-panel-padding flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute inset-0 bg-tertiary-container/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex items-center gap-4 min-w-[250px]">
+<div class="w-12 h-12 rounded-DEFAULT bg-tertiary-fixed border border-tertiary-container/20 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary-container text-2xl">no_transfer</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-tertiary-container text-white px-1.5 py-0.5 rounded-sm font-label-mono-bold text-[10px] uppercase leading-none">HIGH</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:35:12 AM</span>
+</div>
+<h3 class="font-body-sm font-semibold text-on-surface">Restricted Zone Entry</h3>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-8 flex-1 w-full lg:w-auto text-sm">
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Subject</div>
+<div class="font-label-mono-bold text-on-surface">U-012 (Unrecognized)</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Camera</div>
+<div class="font-label-mono-bold text-on-surface">CAM-A1-Main</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Risk Score</div>
+<div class="font-label-mono-bold text-tertiary-container flex items-center gap-1">
+                                82.0 <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+<button class="flex-1 lg:flex-none px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span> Evidence
+                        </button>
+<button class="flex-1 lg:flex-none px-4 py-2 bg-primary text-on-primary rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-primary/90 transition-colors shadow-sm">
+                            Resolve
+                        </button>
+</div>
+</div>
+<!-- Medium Alert Row -->
+<div class="bg-surface border-l-4 border-l-primary border border-outline-variant rounded-DEFAULT p-panel-padding flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+<div class="flex items-center gap-4 min-w-[250px]">
+<div class="w-12 h-12 rounded-DEFAULT bg-primary-container border border-primary/20 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary text-2xl">speed</span>
+</div>
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-primary text-on-primary px-1.5 py-0.5 rounded-sm font-label-mono-bold text-[10px] uppercase leading-none">MEDIUM</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant">10:15:00 AM</span>
+</div>
+<h3 class="font-body-sm font-semibold text-on-surface">Vehicle Speeding</h3>
+</div>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4 lg:gap-8 flex-1 w-full lg:w-auto text-sm">
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Subject</div>
+<div class="font-label-mono-bold text-on-surface">V-Forklift-4</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Camera</div>
+<div class="font-label-mono-bold text-on-surface">CAM-L1-Dock</div>
+</div>
+<div>
+<div class="font-label-mono text-label-mono text-on-surface-variant mb-0.5">Risk Score</div>
+<div class="font-label-mono-bold text-primary flex items-center gap-1">
+                                45.2 <span class="material-symbols-outlined text-[14px]">arrow_downward</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-2 w-full lg:w-auto mt-2 lg:mt-0">
+<button class="flex-1 lg:flex-none px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-surface-container transition-colors flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">visibility</span> Evidence
+                        </button>
+<button class="flex-1 lg:flex-none px-4 py-2 bg-primary text-on-primary rounded-DEFAULT font-label-mono-bold text-label-mono-bold hover:bg-primary/90 transition-colors shadow-sm">
+                            Resolve
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
