@@ -48,7 +48,7 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
 
   const [hostInfo, setHostInfo] = useState<{ local_ip: string; web_cam_url: string; api_url: string } | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
-  const [autoScanEnabled, setAutoScanEnabled] = useState(false);
+  const [autoScanEnabled, setAutoScanEnabled] = useState(true);
   const scanAbortRef = useRef(false);
 
   const [rtspUrl, setRtspUrl] = useState('rtsp://192.168.1.105:8554/live');
@@ -81,8 +81,8 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
           getHostInfo(),
         ]);
         setStatus(st);
+        setDevices(devs || []);
         if (devs && devs.length > 0) {
-          setDevices(devs);
           const connected = devs.find((d) => d.is_connected);
           if (connected && !previewSerial) {
             setPreviewSerial(connected.serial);
@@ -96,7 +96,7 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
     fetchInitial();
   }, []);
 
-  // Recurring polling only when autoScanEnabled is true
+  // Recurring continuous device discovery polling
   useEffect(() => {
     if (!autoScanEnabled) return;
     const interval = setInterval(async () => {
@@ -106,13 +106,11 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
           getMobileDevices(),
         ]);
         setStatus(st);
-        if (devs && devs.length > 0) {
-          setDevices(devs);
-        }
+        setDevices(devs || []);
       } catch (e) {
         // silent
       }
-    }, 4000);
+    }, 2500);
     return () => clearInterval(interval);
   }, [autoScanEnabled]);
 

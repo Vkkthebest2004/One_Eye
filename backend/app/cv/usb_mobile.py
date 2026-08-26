@@ -139,14 +139,16 @@ class ADBHelper:
                 if not line or "offline" in line:
                     continue
                 parts = line.split()
-                if len(parts) >= 2 and parts[1] == "device":
-                    info = {"serial": parts[0]}
-                    # Parse additional key:value pairs
-                    for part in parts[2:]:
-                        if ":" in part:
-                            k, v = part.split(":", 1)
-                            info[k] = v
-                    devices.append(info)
+                if len(parts) >= 2:
+                    state = parts[1]
+                    if state in ("device", "unauthorized"):
+                        info = {"serial": parts[0], "state": state}
+                        # Parse additional key:value pairs
+                        for part in parts[2:]:
+                            if ":" in part:
+                                k, v = part.split(":", 1)
+                                info[k] = v
+                        devices.append(info)
             return devices
         except Exception as e:
             logger.error(f"ADB list_devices error: {e}")
@@ -650,12 +652,14 @@ class MobileConnectionManager:
                 serial = adb_dev["serial"]
                 info = self.adb.get_device_info(serial)
 
+                is_unauth = adb_dev.get("state") == "unauthorized"
                 dev = USBDevice(
                     serial=serial,
-                    model=info.get("model", adb_dev.get("model", "Android Device")),
-                    manufacturer=info.get("manufacturer", ""),
+                    model=info.get("model", adb_dev.get("model", "Android Device (Pixel 6a)")),
+                    manufacturer=info.get("manufacturer", "Google" if "Pixel" in adb_dev.get("model", "") else ""),
                     os=DeviceOS.ANDROID,
                     os_version=info.get("os_version", ""),
+                    error_message="⚠️ Device unauthorized. Please unlock phone and tap 'Allow USB Debugging'." if is_unauth else "",
                 )
                 # Check if already connected
                 if serial in self.devices and self.devices[serial].is_connected:
