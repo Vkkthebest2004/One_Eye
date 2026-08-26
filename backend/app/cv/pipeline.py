@@ -304,7 +304,7 @@ class CameraPipeline:
             )
             for ze in zone_events:
                 if ze.state in ("ENTERED", "INSIDE"):
-                    worker_hazards.append("RESTRICTED_ZONE")
+                    worker_hazards.append("DANGER_ZONE_REACHED")
                     track.current_zone_id = ze.zone_id
 
             # C. Worker-Machine Proximity (3x3 Planar Homography)

@@ -347,16 +347,45 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-between items-center text-xs font-label-mono text-on-surface-variant px-1">
-            <span>Points placed: <strong className="text-on-surface">{points.length}</strong></span>
-            {points.length > 0 && (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="text-error hover:underline flex items-center gap-1 text-xs font-bold"
-              >
-                <RotateCcw className="w-3 h-3" /> Clear Points
-              </button>
+          <div className="flex flex-col gap-2 bg-surface-container-low rounded-lg p-3.5 border border-outline-variant font-label-mono text-xs">
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-on-surface uppercase text-[11px] flex items-center gap-1.5">
+                <Square className="w-3.5 h-3.5 text-primary" />
+                Exact Coordinates Table ({points.length} Points)
+              </span>
+              {points.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="text-error hover:underline text-[11px] font-bold"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            {points.length === 0 ? (
+              <p className="text-on-surface-variant text-[11px]">
+                Click on the camera image above or use 2-Click Box to mark exact coordinates.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
+                {points.map(([px, py], idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-surface px-2.5 py-1 rounded border border-outline-variant text-[11px]">
+                    <span className="font-bold text-primary font-mono">P{idx + 1}:</span>
+                    <span className="font-mono text-on-surface font-semibold">X: {px.toFixed(4)} ({Math.round(px * 100)}%)</span>
+                    <span className="font-mono text-on-surface font-semibold">Y: {py.toFixed(4)} ({Math.round(py * 100)}%)</span>
+                    <button
+                      type="button"
+                      onClick={() => setPoints(points.filter((_, i) => i !== idx))}
+                      className="text-error hover:text-red-400 font-bold px-1"
+                      title="Remove Point"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -378,7 +407,7 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
                     key={p}
                     type="button"
                     onClick={() => setZoneName(p.replace(/^[^\w]+/, '').trim())}
-                    className="px-2 py-0.5 rounded bg-surface border border-outline-variant hover:border-primary text-[10px] text-on-surface"
+                    className="px-2 py-0.5 rounded bg-surface border border-outline-variant hover:border-primary text-[10px] text-on-surface font-semibold"
                   >
                     {p}
                   </button>
@@ -442,18 +471,18 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
               }`}
             >
               <Save className="w-3.5 h-3.5" />
-              Save Forbidden Zone & Activate Alerts
+              Save Fixed Coordinate Zone
             </button>
           </div>
 
           {/* Active Saved Zones for Camera */}
           <div className="bg-surface-container-low rounded-lg p-3.5 border border-outline-variant flex flex-col gap-2 font-label-mono text-xs">
             <h4 className="font-bold text-on-surface uppercase text-[11px] flex justify-between items-center">
-              <span>Active Forbidden Zones ({cameraZones.length})</span>
+              <span>Active Fixed Zones ({cameraZones.length})</span>
             </h4>
 
             {cameraZones.length === 0 ? (
-              <p className="text-on-surface-variant text-[11px]">No restricted zones active for this camera.</p>
+              <p className="text-on-surface-variant text-[11px]">No fixed coordinate zones configured for this camera.</p>
             ) : (
               <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                 {cameraZones.map((z) => (
@@ -463,8 +492,8 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
                   >
                     <div>
                       <div className="font-bold text-on-surface text-xs text-red-400">🚨 {z.name}</div>
-                      <div className="text-[10px] text-on-surface-variant">
-                        {z.polygon?.length || 0} vertices • {z.severity}/100 Severity • Active
+                      <div className="text-[10px] text-on-surface-variant font-mono">
+                        {z.polygon?.length || 0} vertices • Fixed Coordinate Lock
                       </div>
                     </div>
 
