@@ -466,16 +466,18 @@ class MobileCameraSource:
             if phone_devs:
                 idx = phone_devs[0]["index"]
             else:
-                # On macOS, device index 0 is the built-in FaceTime HD camera.
-                # External USB cameras / Android webcams are mapped to index >= 1.
+                # On macOS / Linux, device index 0 is the built-in FaceTime HD laptop webcam.
+                # Only allow external USB video devices (index > 0). NEVER open index 0 for mobile!
                 external_devs = [d for d in uvc_devices if d["index"] > 0]
                 if external_devs:
                     idx = external_devs[-1]["index"]
-                elif uvc_devices:
-                    idx = uvc_devices[0]["index"]
                 else:
-                    logger.debug(f"[{self.device.serial}] No UVC video devices found.")
+                    logger.debug(f"[{self.device.serial}] No external UVC mobile devices found (skipping laptop webcam).")
                     return False
+
+        if idx is None or idx == 0:
+            logger.debug(f"[{self.device.serial}] Refusing to open device index 0 (laptop webcam) for mobile connection.")
+            return False
 
         # Open video capture
         cap = cv2.VideoCapture(idx)

@@ -192,9 +192,8 @@ export default function MobileCamPage() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [isStreaming, quality]);
 
-  // Initial startup
+  // Cleanup on unmount (Do NOT auto-start camera on page load)
   useEffect(() => {
-    startCamera(facingMode);
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -203,7 +202,7 @@ export default function MobileCamPage() {
         wsRef.current.close();
       }
     };
-  }, [facingMode, quality]);
+  }, []);
 
   const toggleCamera = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
