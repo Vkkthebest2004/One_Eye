@@ -12,11 +12,12 @@ export const KpiRow: React.FC<KpiRowProps> = ({
   activeCount,
   totalTrackedWorkers,
 }) => {
-  const totalCams = summary?.cameras_total || 4;
-  const onlineCams = summary?.cameras_online || 4;
-  const criticalCount = summary?.critical_events || (activeCount > 0 ? 1 : 0);
-  const avgRisk = summary?.avg_risk_score || 32;
-  const workersCount = totalTrackedWorkers > 0 ? totalTrackedWorkers : 27;
+  // Pure real-time telemetry (no synthetic mock fallbacks)
+  const totalCams = summary?.cameras_total ?? 1;
+  const onlineCams = summary?.cameras_online ?? 0;
+  const criticalCount = summary?.critical_events ?? 0;
+  const avgRisk = summary?.avg_risk_score ?? 0;
+  const workersCount = totalTrackedWorkers ?? summary?.workers_tracked ?? 0;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-gutter mb-2">
@@ -25,7 +26,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
           <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Cameras
+            Active Feeds
           </span>
           <span className="material-symbols-outlined text-on-surface-variant">videocam</span>
         </div>
@@ -33,48 +34,64 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           <span className="font-data-metric text-3xl font-bold text-on-surface">
             {onlineCams}/{totalCams}
           </span>
-          <span className="font-label-mono-bold text-xs text-severity-safe flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-severity-safe inline-block" />
-            ONLINE
+          <span className={`font-label-mono-bold text-xs flex items-center gap-1 ${
+            onlineCams > 0 ? 'text-severity-safe' : 'text-on-surface-variant'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full inline-block ${
+              onlineCams > 0 ? 'bg-severity-safe animate-pulse' : 'bg-on-surface-variant'
+            }`} />
+            {onlineCams > 0 ? 'ONLINE' : 'STANDBY'}
           </span>
         </div>
       </div>
 
       {/* KPI 2: Active Alerts */}
-      <div className="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 border-l-severity-warning">
+      <div className={`level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 ${
+        activeCount > 0 ? 'border-l-severity-warning' : 'border-l-severity-safe'
+      }`}>
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
           <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
             Active Alerts
           </span>
-          <span className="material-symbols-outlined text-severity-warning">notifications_active</span>
+          <span className={`material-symbols-outlined ${activeCount > 0 ? 'text-severity-warning animate-pulse' : 'text-on-surface-variant'}`}>
+            notifications_active
+          </span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="font-data-metric text-3xl font-bold text-severity-warning">
+          <span className={`font-data-metric text-3xl font-bold ${
+            activeCount > 0 ? 'text-severity-warning' : 'text-on-surface'
+          }`}>
             {activeCount.toString().padStart(2, '0')}
           </span>
-          <span className="font-label-mono-bold text-xs text-on-surface-variant">REQ ATTN</span>
+          <span className="font-label-mono-bold text-xs text-on-surface-variant">
+            {activeCount > 0 ? 'REQ ATTN' : 'ALL CLEAR'}
+          </span>
         </div>
       </div>
 
       {/* KPI 3: Critical Events */}
-      <div className={`level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 border-l-severity-critical ${
-        criticalCount > 0 ? 'critical-bloom' : ''
+      <div className={`level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden border-l-4 ${
+        criticalCount > 0 ? 'border-l-severity-critical critical-bloom' : 'border-l-industrial-border'
       }`}>
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-critical/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
           <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
             Critical Events
           </span>
-          <span className={`material-symbols-outlined text-severity-critical ${criticalCount > 0 ? 'animate-pulse' : ''}`}>
+          <span className={`material-symbols-outlined ${criticalCount > 0 ? 'text-severity-critical animate-pulse' : 'text-on-surface-variant'}`}>
             warning
           </span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="font-data-metric text-3xl font-bold text-severity-critical">
+          <span className={`font-data-metric text-3xl font-bold ${
+            criticalCount > 0 ? 'text-severity-critical' : 'text-on-surface'
+          }`}>
             {criticalCount.toString().padStart(2, '0')}
           </span>
-          <span className="font-label-mono-bold text-xs text-severity-critical">
+          <span className={`font-label-mono-bold text-xs ${
+            criticalCount > 0 ? 'text-severity-critical' : 'text-severity-safe'
+          }`}>
             {criticalCount > 0 ? 'UNRESOLVED' : 'NOMINAL'}
           </span>
         </div>
@@ -102,7 +119,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-2">
           <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Avg Risk
+            Avg Risk Index
           </span>
           <span className="material-symbols-outlined text-on-surface-variant">speed</span>
         </div>
@@ -117,7 +134,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
             className={`h-full rounded transition-all duration-500 ${
               avgRisk > 70 ? 'bg-severity-critical' : avgRisk > 40 ? 'bg-severity-warning' : 'bg-severity-safe'
             }`}
-            style={{ width: `${Math.min(100, Math.max(5, avgRisk))}%` }}
+            style={{ width: `${Math.min(100, Math.max(avgRisk === 0 ? 0 : 5, avgRisk))}%` }}
           />
         </div>
       </div>

@@ -1,11 +1,15 @@
-import os
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Backend commands run from ``backend/`` while deployment runs from the
+        # repository root.  Resolve this once so both environments load the
+        # same settings file.
+        env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -19,6 +23,10 @@ class Settings(BaseSettings):
 
     def get_database_url(self) -> str:
         if self.DATABASE_URL:
+            relative_sqlite_prefix = "sqlite+aiosqlite:///./"
+            if self.DATABASE_URL.startswith(relative_sqlite_prefix):
+                db_file = self.DATABASE_URL.removeprefix(relative_sqlite_prefix)
+                return f"sqlite+aiosqlite:///{self.base_dir / db_file}"
             return self.DATABASE_URL
         root_db = self.base_dir / "oneeye.db"
         return f"sqlite+aiosqlite:///{root_db}"
@@ -28,7 +36,12 @@ class Settings(BaseSettings):
     VIDEO_SOURCE: str = "./videos/demo/factory_safety.mp4"
     DEFAULT_CAMERA_ID: str = "CAM_01"
     MODEL_DEVICE: str = "mps"
-    YOLO_MODEL_PATH: str = "yolov8n.pt"
+    # YOLO26 is the current Ultralytics real-time family.  The nano checkpoint
+    # keeps edge inference practical and downloads automatically on first use.
+    YOLO_MODEL_PATH: str = "yolo26n.pt"
+    # A plant must provide a PPE-trained model before claiming model-grade PPE
+    # detection.  The base COCO model only supplies person detection.
+    PPE_MODEL_PATH: str = ""
     YOLO_CONFIDENCE: float = 0.25
     INFERENCE_FPS: int = 15
 
@@ -63,10 +76,11 @@ class Settings(BaseSettings):
     RISK_THRESHOLD_HIGH: int = 60
     RISK_THRESHOLD_CRITICAL: int = 80
     EXPOSURE_ESCALATION_SECONDS: float = 5.0
+    TRACK_LOSS_RESOLUTION_SECONDS: float = 3.0
 
     @property
     def base_dir(self) -> Path:
-        return Path(__file__).resolve().parent.parent.parent
+        return PROJECT_ROOT
 
 
 settings = Settings()

@@ -374,6 +374,17 @@ class PipelineManager:
     def get(self, camera_id: str) -> Optional[CameraPipeline]:
         return self.pipelines.get(camera_id)
 
+    def get_pipeline(self, camera_id: str) -> Optional[CameraPipeline]:
+        return self.pipelines.get(camera_id)
+
+    def toggle_ai(self, enabled: Optional[bool] = None) -> bool:
+        if enabled is not None:
+            self.ai_enabled = enabled
+        else:
+            self.ai_enabled = not self.ai_enabled
+        logger.info(f"System AI Hazard Scanning toggled: {self.ai_enabled}")
+        return self.ai_enabled
+
     async def stop_all(self):
         for p in self.pipelines.values():
             await p.stop()

@@ -121,6 +121,7 @@ export interface AnalyticsSummary {
   events_24h: number;
   cameras_total: number;
   cameras_online: number;
+  workers_tracked?: number;
 }
 
 export interface TrendData {
