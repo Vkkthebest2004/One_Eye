@@ -54,10 +54,11 @@ class Settings(BaseSettings):
             return Path(self.EVIDENCE_DIR).resolve()
         return (self.base_dir / "evidence").resolve()
 
-    # AI Reasoning
-    ENABLE_QWEN: bool = False
+    # AI Reasoning & Perception Engine
+    DEFAULT_PERCEPTION_MODE: str = "QWEN_VL" # "QWEN_VL" | "YOLO" | "HYBRID"
+    ENABLE_QWEN: bool = True
     QWEN_API_KEY: str = ""
-    QWEN_MODEL_NAME: str = "qwen-vl-plus"
+    QWEN_MODEL_NAME: str = "qwen2-vl-7b-instruct"
 
     # Alert Channels
     ENABLE_TTS: bool = False

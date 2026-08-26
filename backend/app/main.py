@@ -195,7 +195,8 @@ async def toggle_system_ai(payload: ToggleAIRequest = ToggleAIRequest()):
 # Global System Control: Perception Model Engine (YOLO vs Qwen2-VL vs Hybrid)
 # ---------------------------------------------------------------------------
 class PerceptionModeRequest(BaseModel):
-    mode: str = "YOLO"
+    mode: str = "QWEN_VL"
+    permanent: bool = True
 
 
 @app.get("/api/system/perception-mode")
@@ -203,31 +204,53 @@ async def get_perception_mode():
     """Return the active perception engine mode (YOLO, QWEN_VL, or HYBRID)."""
     mode = pipeline_manager.perception_mode
     label = (
-        "⚡ YOLOv8 (Ultra-Fast)" if mode == "YOLO"
-        else ("🧠 Qwen2-VL (Cognitive)" if mode == "QWEN_VL"
+        "🧠 Qwen2-VL (Permanent Default)" if mode == "QWEN_VL"
+        else ("⚡ YOLOv8 (Ultra-Fast)" if mode == "YOLO"
         else "🔄 Hybrid Dual-AI")
     )
     return {
         "perception_mode": mode,
         "mode_label": label,
-        "available_modes": ["YOLO", "QWEN_VL", "HYBRID"],
+        "available_modes": ["QWEN_VL", "YOLO", "HYBRID"],
+        "is_default": mode == getattr(settings, "DEFAULT_PERCEPTION_MODE", "QWEN_VL"),
     }
 
 
 @app.post("/api/system/perception-mode")
 async def set_perception_mode(payload: PerceptionModeRequest):
-    """Switch active perception engine between YOLO, Qwen2-VL, and Hybrid."""
+    """Switch active perception engine between YOLO, Qwen2-VL, and Hybrid with permanent persistence."""
     new_mode = pipeline_manager.set_perception_mode(payload.mode)
+    
+    if payload.permanent:
+        settings.DEFAULT_PERCEPTION_MODE = new_mode
+        try:
+            # Persist to .env if present
+            env_file = settings.base_dir / ".env"
+            if env_file.exists():
+                content = env_file.read_text(encoding="utf-8")
+                if "DEFAULT_PERCEPTION_MODE=" in content:
+                    lines = [
+                        f"DEFAULT_PERCEPTION_MODE={new_mode}" if line.startswith("DEFAULT_PERCEPTION_MODE=") else line
+                        for line in content.splitlines()
+                    ]
+                    env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                else:
+                    env_file.write_text(content + f"\nDEFAULT_PERCEPTION_MODE={new_mode}\n", encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Could not write default perception mode to .env: {e}")
+
     await ws_manager.broadcast({
         "type": "PERCEPTION_MODE_CHANGED",
         "data": {
             "perception_mode": new_mode,
+            "is_permanent": payload.permanent,
         }
     })
     return {
         "success": True,
         "perception_mode": new_mode,
-        "message": f"Active AI perception engine switched to: {new_mode}",
+        "is_permanent": payload.permanent,
+        "message": f"Active AI perception engine switched to: {new_mode} {'(Permanent Default)' if payload.permanent else ''}",
     }
 
 

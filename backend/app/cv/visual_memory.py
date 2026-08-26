@@ -26,11 +26,11 @@ class TrackedVisualZone:
     name: str
     polygon_norm: List[List[float]] # Normalized [0, 1] points in live frame
     polygon_px: List[List[int]]     # Absolute pixel points in live frame
-    reference_polygon_norm: List[List[float]] # Fallback reference coordinates
     severity: int
     is_visible: bool                # True if currently active
     match_confidence: float         # Inlier ratio / match quality (0.0 - 1.0)
     inlier_count: int
+    reference_polygon_norm: List[List[float]] = field(default_factory=list) # Fallback reference coordinates
 
 
 @dataclass

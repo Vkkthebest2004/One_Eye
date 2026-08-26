@@ -31,8 +31,19 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
       .then((res) => setAiEnabled(res.ai_enabled))
       .catch(() => null);
 
+    // Read stored preference first, then sync with server
+    const cachedMode = typeof window !== 'undefined' ? localStorage.getItem('oneeye_perception_mode') : null;
+    if (cachedMode && ['YOLO', 'QWEN_VL', 'HYBRID'].includes(cachedMode)) {
+      setPerceptionState(cachedMode as any);
+    }
+
     getPerceptionMode()
-      .then((res) => setPerceptionState(res.perception_mode as any))
+      .then((res) => {
+        setPerceptionState(res.perception_mode as any);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('oneeye_perception_mode', res.perception_mode);
+        }
+      })
       .catch(() => null);
 
     getDemoMode()
@@ -57,15 +68,18 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
 
   const handleCyclePerceptionMode = async () => {
     const cycleMap: Record<string, 'YOLO' | 'QWEN_VL' | 'HYBRID'> = {
-      YOLO: 'QWEN_VL',
       QWEN_VL: 'HYBRID',
       HYBRID: 'YOLO',
+      YOLO: 'QWEN_VL',
     };
-    const nextMode = cycleMap[perceptionMode] || 'YOLO';
+    const nextMode = cycleMap[perceptionMode] || 'QWEN_VL';
     setIsChangingMode(true);
     try {
-      const res = await setPerceptionMode(nextMode);
+      const res = await setPerceptionMode(nextMode, true);
       setPerceptionState(res.perception_mode as any);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('oneeye_perception_mode', res.perception_mode);
+      }
     } catch (e) {
       console.warn('Failed to change perception mode', e);
     } finally {

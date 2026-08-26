@@ -285,14 +285,14 @@ export async function toggleSystemAi(enabled?: boolean): Promise<{ ai_enabled: b
   });
 }
 
-export async function getPerceptionMode(): Promise<{ perception_mode: string; mode_label: string; available_modes: string[] }> {
-  return fetchJson<{ perception_mode: string; mode_label: string; available_modes: string[] }>('/api/system/perception-mode');
+export async function getPerceptionMode(): Promise<{ perception_mode: string; mode_label: string; available_modes: string[]; is_default?: boolean }> {
+  return fetchJson<{ perception_mode: string; mode_label: string; available_modes: string[]; is_default?: boolean }>('/api/system/perception-mode');
 }
 
-export async function setPerceptionMode(mode: 'YOLO' | 'QWEN_VL' | 'HYBRID'): Promise<{ success: boolean; perception_mode: string; message: string }> {
-  return fetchJson<{ success: boolean; perception_mode: string; message: string }>('/api/system/perception-mode', {
+export async function setPerceptionMode(mode: 'YOLO' | 'QWEN_VL' | 'HYBRID', permanent: boolean = true): Promise<{ success: boolean; perception_mode: string; message: string; is_permanent?: boolean }> {
+  return fetchJson<{ success: boolean; perception_mode: string; message: string; is_permanent?: boolean }>('/api/system/perception-mode', {
     method: 'POST',
-    body: JSON.stringify({ mode }),
+    body: JSON.stringify({ mode, permanent }),
   });
 }
 

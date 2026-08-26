@@ -417,7 +417,7 @@ class PipelineManager:
     def __init__(self):
         self.pipelines: Dict[str, CameraPipeline] = {}
         self.ai_enabled: bool = True
-        self.perception_mode: str = "YOLO" # "YOLO" | "QWEN_VL" | "HYBRID"
+        self.perception_mode: str = getattr(settings, "DEFAULT_PERCEPTION_MODE", "QWEN_VL") # "QWEN_VL" | "YOLO" | "HYBRID"
         self.inference_lock: asyncio.Lock = asyncio.Lock()
 
     def set_ai_enabled(self, enabled: bool):
