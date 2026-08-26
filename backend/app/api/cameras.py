@@ -106,26 +106,24 @@ async def get_camera_stream(camera_id: str, fps: int = 30):
     standby_bytes = standby_jpeg_raw.tobytes()
 
     async def frame_generator():
-        last_frame_ref = None
-        cached_jpeg = None
         while True:
             t0 = asyncio.get_event_loop().time()
             frame = pipe.latest_frame
-            if frame is None and (camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE"):
+            if camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE":
                 from app.cv.usb_mobile import mobile_manager
-                web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
-                if web_res:
+                web_res = (
+                    mobile_manager.get_web_frame(camera_id)
+                    or mobile_manager.get_web_frame("CAM_MOBILE")
+                    or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+                    or mobile_manager.get_web_frame("24151JEGR16946")
+                )
+                if web_res and web_res[0] is not None:
                     frame = web_res[0]
                     pipe.latest_frame = frame
 
             if frame is not None:
-                # Fast path: only encode if new frame object arrived
-                if frame is not last_frame_ref or cached_jpeg is None:
-                    ok, jpeg = cv2.imencode(".jpg", frame, encode_params)
-                    if ok:
-                        cached_jpeg = jpeg.tobytes()
-                        last_frame_ref = frame
-                out_bytes = cached_jpeg
+                ok, jpeg = cv2.imencode(".jpg", frame, encode_params)
+                out_bytes = jpeg.tobytes() if ok else standby_bytes
             else:
                 out_bytes = standby_bytes
 
@@ -152,10 +150,15 @@ async def get_camera_snapshot(camera_id: str):
     pipe = pipeline_manager.get_pipeline(camera_id)
     frame = pipe.latest_frame if pipe else None
 
-    if frame is None and (camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE"):
+    if camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE":
         from app.cv.usb_mobile import mobile_manager
-        web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
-        if web_res:
+        web_res = (
+            mobile_manager.get_web_frame(camera_id)
+            or mobile_manager.get_web_frame("CAM_MOBILE")
+            or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+            or mobile_manager.get_web_frame("24151JEGR16946")
+        )
+        if web_res and web_res[0] is not None:
             frame = web_res[0]
 
     if frame is None:
