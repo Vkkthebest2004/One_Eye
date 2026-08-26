@@ -217,7 +217,9 @@ export default function MobileCamPage() {
   }, []);
 
   const toggleCamera = () => {
-    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
   };
 
   const toggleTorch = async () => {

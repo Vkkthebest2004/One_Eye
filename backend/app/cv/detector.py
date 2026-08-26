@@ -110,7 +110,7 @@ class Detector(BaseDetector):
     def __init__(
         self,
         model_path: str = "yolov8n.pt",
-        confidence_threshold: float = 0.25,
+        confidence_threshold: float = 0.45,
         device: str = "mps",
         ppe_model_path: str = "",
     ):
@@ -213,6 +213,14 @@ class Detector(BaseDetector):
                         xyxy = box.xyxy[0].cpu().numpy()
                         x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
                         
+                        w = x2 - x1
+                        h = y2 - y1
+
+                        # Reject false positives: Minimum person size and high confidence
+                        if category == "PERSON":
+                            if conf < 0.50 or w < 24 or h < 45:
+                                continue
+
                         center_x = (x1 + x2) / 2.0
                         center_y = (y1 + y2) / 2.0
                         foot_x = center_x
