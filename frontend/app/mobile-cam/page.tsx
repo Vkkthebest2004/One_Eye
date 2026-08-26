@@ -15,70 +15,72 @@ export default function MobileCamPage() {
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [quality, setQuality] = useState<'720p' | '1080p' | '480p'>('720p');
 
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
+
   const streamRef = useRef<MediaStream | null>(null);
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(Date.now());
 
-  // Start Camera Stream (Strict Back/Front Selection with Multi-Tier Fallback)
-  const startCamera = async (mode: 'environment' | 'user') => {
+  // Enumerate cameras (populates device list and labels after permission)
+  const refreshDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter((d) => d.kind === 'videoinput');
+      setVideoDevices(inputs);
+      return inputs;
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Start Camera Stream (Direct Lens Switching by DeviceId or FacingMode)
+  const startCamera = async (target: string) => {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
 
-      let stream: MediaStream | null = null;
+      let constraints: MediaStreamConstraints = { audio: false, video: true };
 
-      // 1. Try exact facingMode first (Forces Chrome to open exact rear/front sensor)
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
+      if (target && target.length > 20) {
+        // Target is an exact deviceId
+        constraints = {
           video: {
-            facingMode: { exact: mode },
+            deviceId: { exact: target },
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
           audio: false,
-        });
-      } catch (e1) {
-        // 2. Try direct facingMode string
-        try {
+        };
+      } else if (target === 'user' || target === 'environment') {
+        // Target is facingMode string
+        constraints = {
+          video: {
+            facingMode: target,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        };
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err1) {
+        // Fallback with relaxed resolution
+        if (target === 'environment' || target === 'user') {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: mode,
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
+            video: { facingMode: target },
             audio: false,
           });
-        } catch (e2) {
-          // 3. Try device enumeration to find back/front lens
-          try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-            let targetDevice = videoInputs.find((d) => {
-              const label = d.label.toLowerCase();
-              return mode === 'environment'
-                ? label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('0')
-                : label.includes('front') || label.includes('user') || label.includes('selfie') || label.includes('1');
-            });
-            if (!targetDevice && videoInputs.length > 0) {
-              targetDevice = mode === 'environment' ? videoInputs[0] : videoInputs[videoInputs.length - 1];
-            }
-            if (targetDevice && targetDevice.deviceId) {
-              stream = await navigator.mediaDevices.getUserMedia({
-                video: { deviceId: { exact: targetDevice.deviceId } },
-                audio: false,
-              });
-            } else {
-              throw new Error('No target camera device found');
-            }
-          } catch (e3) {
-            // 4. Final fallback
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
-          }
+        } else {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
         }
       }
 
@@ -88,18 +90,29 @@ export default function MobileCamPage() {
         try {
           await videoRef.current.play();
         } catch (e) {
-          // Handled by autoPlay attribute
+          // autoPlay handles it
         }
       }
 
+      // Update discovered devices & active label
+      const inputs = await refreshDevices();
+      const currentTrack = stream.getVideoTracks()[0];
+      const activeLabel = currentTrack?.label || (target === 'user' ? 'Front Selfie Camera' : 'Back Rear Camera');
+
+      const isBack =
+        activeLabel.toLowerCase().includes('back') ||
+        activeLabel.toLowerCase().includes('rear') ||
+        activeLabel.toLowerCase().includes('0') ||
+        target === 'environment';
+
+      setFacingMode(isBack ? 'environment' : 'user');
+      setSelectedDeviceId(currentTrack?.getSettings()?.deviceId || '');
+
       // Check for torch capability
-      const track = stream.getVideoTracks()[0];
-      const capabilities: any = track.getCapabilities ? track.getCapabilities() : {};
+      const capabilities: any = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
       setHasTorch(!!capabilities.torch);
 
-      setStatusMsg(
-        `Active: ${mode === 'environment' ? '📷 Back Camera (Rear)' : '🤳 Front Camera (Selfie)'} — Streaming to ONE EYE`
-      );
+      setStatusMsg(`Active: ${activeLabel}`);
       setIsStreaming(true);
       connectWebSocket();
     } catch (err: any) {
@@ -256,9 +269,18 @@ export default function MobileCamPage() {
     };
   }, []);
 
-  const toggleCamera = () => {
+  const toggleCamera = async () => {
+    const inputs = await refreshDevices();
+    if (inputs.length >= 2) {
+      const currentTrack = streamRef.current?.getVideoTracks()[0];
+      const currentDeviceId = currentTrack?.getSettings()?.deviceId;
+      const nextDev = inputs.find((d) => d.deviceId !== currentDeviceId) || inputs[0];
+      if (nextDev) {
+        startCamera(nextDev.deviceId);
+        return;
+      }
+    }
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    setFacingMode(nextMode);
     startCamera(nextMode);
   };
 
@@ -334,7 +356,7 @@ export default function MobileCamPage() {
               <p className="text-xs text-gray-300">Tap below to grant camera access and stream directly to ONE EYE.</p>
             </div>
             <button
-              onClick={() => startCamera(facingMode)}
+              onClick={() => startCamera('environment')}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-sm rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
             >
               <span className="material-symbols-outlined text-lg">photo_camera</span>
@@ -361,23 +383,50 @@ export default function MobileCamPage() {
       <div className="relative z-10 p-5 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-3">
         <div className="text-center text-xs font-mono text-gray-300">{statusMsg}</div>
 
-        <div className="flex items-center justify-around">
-          {/* Flip Camera */}
+        <div className="flex items-center justify-around gap-2">
+          {/* Direct Lens Switcher: Rear vs Front */}
+          <div className="flex bg-white/15 backdrop-blur rounded-xl p-1 border border-white/20">
+            <button
+              onClick={() => startCamera('environment')}
+              className={`px-3 py-2 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+                facingMode === 'environment'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">photo_camera</span>
+              📷 Rear
+            </button>
+            <button
+              onClick={() => startCamera('user')}
+              className={`px-3 py-2 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition-all ${
+                facingMode === 'user'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base">face</span>
+              🤳 Front
+            </button>
+          </div>
+
+          {/* Quick Flip Cycle */}
           <button
             onClick={toggleCamera}
-            className="w-12 h-12 rounded-full bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center active:scale-95 transition-transform"
+            className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur border border-white/20 flex items-center justify-center active:scale-95 transition-transform"
+            title="Cycle Next Camera Lens"
           >
-            <span className="material-symbols-outlined text-white text-2xl">flip_camera_android</span>
+            <span className="material-symbols-outlined text-white text-xl">flip_camera_android</span>
           </button>
 
           {/* Resolution Switcher */}
-          <div className="flex bg-white/10 backdrop-blur rounded-lg p-1 border border-white/20">
-            {(['480p', '720p', '1080p'] as const).map((r) => (
+          <div className="flex bg-white/15 backdrop-blur rounded-xl p-1 border border-white/20">
+            {(['480p', '720p'] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => setQuality(r)}
-                className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all ${
-                  quality === r ? 'bg-blue-600 text-white' : 'text-gray-300 hover:text-white'
+                className={`px-2.5 py-2 rounded-lg text-xs font-mono font-bold transition-all ${
+                  quality === r ? 'bg-blue-600 text-white shadow-md' : 'text-gray-300 hover:text-white'
                 }`}
               >
                 {r}
@@ -389,11 +438,11 @@ export default function MobileCamPage() {
           {hasTorch && (
             <button
               onClick={toggleTorch}
-              className={`w-12 h-12 rounded-full backdrop-blur border border-white/20 flex items-center justify-center active:scale-95 transition-transform ${
-                isTorchOn ? 'bg-amber-400 text-black' : 'bg-white/10 text-white'
+              className={`w-11 h-11 rounded-xl backdrop-blur border border-white/20 flex items-center justify-center active:scale-95 transition-transform ${
+                isTorchOn ? 'bg-amber-400 text-black shadow-md' : 'bg-white/15 text-white'
               }`}
             >
-              <span className="material-symbols-outlined text-2xl">
+              <span className="material-symbols-outlined text-xl">
                 {isTorchOn ? 'flash_on' : 'flash_off'}
               </span>
             </button>
