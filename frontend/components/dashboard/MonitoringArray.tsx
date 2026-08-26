@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Camera, LiveTrack, LiveDetection, Zone, Machine } from '@/types';
+import { getMediaUrl } from '@/lib/api';
 
 interface MonitoringArrayProps {
   cameras: Camera[];
@@ -215,8 +216,17 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
       </div>
 
       {/* Grid */}
-      <div className={`grid gap-gutter flex-1 ${filteredCameras.length === 1 ? 'grid-cols-1 max-w-4xl mx-auto w-full' : 'grid-cols-1 md:grid-cols-2'}`}>
-        {filteredCameras.map((cam) => {
+      {filteredCameras.length === 0 ? (
+        <div className="level-1-panel rounded-lg p-10 flex flex-col items-center justify-center text-center gap-3 border border-outline-variant bg-surface min-h-[360px]">
+          <span className="material-symbols-outlined text-4xl text-on-surface-variant">videocam_off</span>
+          <h4 className="font-label-mono-bold text-sm text-on-surface">No Active Video Feeds</h4>
+          <p className="font-label-mono text-xs text-on-surface-variant max-w-md">
+            Connect an Android mobile camera via USB or configure RTSP / USB camera streams in the Settings tab.
+          </p>
+        </div>
+      ) : (
+        <div className={`grid gap-gutter flex-1 ${filteredCameras.length === 1 ? 'grid-cols-1 max-w-4xl mx-auto w-full' : 'grid-cols-1 md:grid-cols-2'}`}>
+          {filteredCameras.map((cam) => {
           const fps = cameraFps[cam.id] || (cam.id === 'CAM_03' ? 24.5 : 29.97);
           const tracks = cameraTracks[cam.id] || [];
           const hasCritical = tracks.some((t) => (t.current_risk_score || 0) >= 70) || cam.id === 'CAM_03';
@@ -240,7 +250,7 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
               {!isPaused ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
-                  src={`http://localhost:8001/api/cameras/${cam.id}/stream`}
+                  src={getMediaUrl(`/api/cameras/${cam.id}/stream`)}
                   alt={cam.name}
                   className={`absolute inset-0 w-full h-full object-cover ${
                     hasCritical ? 'contrast-105' : 'grayscale-[5%]'
@@ -249,7 +259,7 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
                     const target = e.currentTarget;
                     // Auto-retry connection after 1.5s
                     setTimeout(() => {
-                      target.src = `http://localhost:8001/api/cameras/${cam.id}/stream?t=${Date.now()}`;
+                      target.src = getMediaUrl(`/api/cameras/${cam.id}/stream?t=${Date.now()}`);
                     }, 1500);
                   }}
                 />
@@ -354,7 +364,8 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
