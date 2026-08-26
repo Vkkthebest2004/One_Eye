@@ -102,6 +102,9 @@ class BaseDetector(abc.ABC):
         pass
 
 
+_MODEL_CACHE: Dict[str, Any] = {}
+
+
 class Detector(BaseDetector):
     """
     Production YOLO Perception Detector with Apple Silicon Metal Performance Shaders (MPS),
@@ -109,7 +112,7 @@ class Detector(BaseDetector):
     """
     def __init__(
         self,
-        model_path: str = "yolov8s.pt",
+        model_path: str = "yolov8n.pt",
         confidence_threshold: float = 0.45,
         device: str = "mps",
         ppe_model_path: str = "",
@@ -168,19 +171,24 @@ class Detector(BaseDetector):
                 selected_device = "cuda"
             else:
                 selected_device = "cpu"
-                
-            logger.info(f"Initializing YOLO detector '{self.model_path}' on device '{selected_device}'...")
-            self.model = YOLO(self.model_path)
+            
             self.device = selected_device
+
+            # Use Shared Singleton Model instance across all camera channels
+            if self.model_path not in _MODEL_CACHE:
+                logger.info(f"Loading shared YOLO detector '{self.model_path}' on device '{selected_device}'...")
+                _MODEL_CACHE[self.model_path] = YOLO(self.model_path)
+            self.model = _MODEL_CACHE[self.model_path]
             self.is_loaded = True
             
             if self.ppe_model_path:
-                try:
-                    logger.info(f"Loading specialized YOLO PPE detector '{self.ppe_model_path}'...")
-                    self.ppe_model = YOLO(self.ppe_model_path)
-                    logger.info(f"YOLO PPE detector successfully online ({self.ppe_model_path})")
-                except Exception as exc:
-                    logger.warning(f"Could not load custom PPE model ({exc}); using integrated perception.")
+                if self.ppe_model_path not in _MODEL_CACHE:
+                    try:
+                        logger.info(f"Loading shared YOLO PPE detector '{self.ppe_model_path}'...")
+                        _MODEL_CACHE[self.ppe_model_path] = YOLO(self.ppe_model_path)
+                    except Exception as exc:
+                        logger.warning(f"Could not load custom PPE model ({exc}); using integrated perception.")
+                self.ppe_model = _MODEL_CACHE.get(self.ppe_model_path)
             
             logger.info(f"YOLO detector successfully online ({self.model_path})")
         except Exception as e:
