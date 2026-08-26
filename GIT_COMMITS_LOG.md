@@ -6,6 +6,10 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ## Milestone Log
 
+- **Commit `7ed025a`**: `feat(pose): integrate YOLOv8-pose keypoint ankle ground localization and Euclidean distance tracking`
+  - Integrated `yolov8n-pose.pt` keypoint estimation to extract human ankle joints (COCO kpt 15 & 16) for ground-truth millimeter-accurate foot contact coordinate determination.
+  - Added mathematical Euclidean polygon distance calculation with Shapely geometry to compute sub-pixel proximity to danger zones.
+
 - **Commit `32ae3ca`**: `feat(zones): implement precise coordinate-based fixed danger zone system with DANGER_ZONE_REACHED alerts`
   - Built precision coordinate-based fixed danger zone system with real-time vertex coordinates table ($P_1, P_2, \dots$), 2-click box mode, and multi-point polygon drawer.
   - Locked danger perimeter to fixed normalized $(X, Y)$ coordinates ($0.0000 - 1.0000$).
