@@ -10,6 +10,7 @@ interface MonitoringArrayProps {
   cameraTracks: Record<string, LiveTrack[]>;
   cameraDetections: Record<string, LiveDetection[]>;
   cameraFps: Record<string, number>;
+  visualZones?: Record<string, any[]>;
   onSelectCamera?: (cam: Camera) => void;
   onZonesUpdated?: () => void;
 }
@@ -21,6 +22,7 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
   cameraTracks,
   cameraDetections,
   cameraFps,
+  visualZones,
   onSelectCamera,
   onZonesUpdated,
 }) => {
@@ -39,14 +41,23 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
       const height = canvas.height;
       ctx.clearRect(0, 0, width, height);
 
-      // 1. Draw Restricted Safety Zones (Polygonal Boundaries & Danger Heatmap)
-      const camZones = zones.filter((z) => z.camera_id === cam.id);
+      // 1. Draw Restricted Safety Zones & Visual Homography Anchors
+      const dynVisualZones = (visualZones && visualZones[cam.id]) || [];
+      const camZones = zones.filter((z) => z.camera_id === cam.id || (cam.source_type === 'mobile' && z.camera_id.startsWith('CAM_MOB')));
+
       camZones.forEach((z) => {
-        const poly = z.polygon || [];
+        // Check if dynamic homography tracking is active for this zone
+        const tracked = dynVisualZones.find((vz: any) => vz.zone_id === z.id);
+        if (tracked && !tracked.is_visible) {
+          // Object is out of camera view — culling prevents false alarms
+          return;
+        }
+        const poly = (tracked && tracked.polygon && tracked.polygon.length >= 3) ? tracked.polygon : (z.polygon || []);
         if (!poly || poly.length < 3) return;
+
         ctx.save();
         ctx.beginPath();
-        poly.forEach(([px, py], i) => {
+        poly.forEach(([px, py]: [number, number], i: number) => {
           const x = px * width;
           const y = py * height;
           if (i === 0) ctx.moveTo(x, y);
@@ -55,19 +66,19 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
         ctx.closePath();
 
         // Glowing semi-transparent zone fill
-        ctx.fillStyle = 'rgba(220, 38, 38, 0.12)';
+        ctx.fillStyle = tracked ? 'rgba(239, 68, 68, 0.22)' : 'rgba(220, 38, 38, 0.12)';
         ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#dc2626';
+        ctx.lineWidth = tracked ? 2.5 : 2;
+        ctx.strokeStyle = tracked ? '#ef4444' : '#dc2626';
         ctx.setLineDash([6, 4]);
         ctx.stroke();
 
         // Zone Tag Banner
         const [firstX, firstY] = poly[0];
-        const tagText = `⚠️ RESTRICTED: ${z.name.toUpperCase()}`;
+        const tagText = tracked ? `🔒 WORLD-ANCHORED: ${z.name.toUpperCase()}` : `⚠️ RESTRICTED: ${z.name.toUpperCase()}`;
         ctx.font = 'bold 9px "Geist Mono", monospace';
         const tagW = ctx.measureText(tagText).width + 8;
-        ctx.fillStyle = '#dc2626';
+        ctx.fillStyle = tracked ? '#b91c1c' : '#dc2626';
         ctx.fillRect(firstX * width, Math.max(0, firstY * height - 14), tagW, 14);
         ctx.fillStyle = '#ffffff';
         ctx.fillText(tagText, firstX * width + 4, Math.max(10, firstY * height - 3));

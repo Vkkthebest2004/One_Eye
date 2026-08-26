@@ -48,6 +48,7 @@ export default function DashboardPage() {
     cameraTracks,
     cameraDetections,
     cameraFps,
+    visualZones,
     setActiveAlerts,
   } = useOneEyeWebSocket();
 
@@ -188,6 +189,7 @@ export default function DashboardPage() {
                   cameraTracks={cameraTracks}
                   cameraDetections={cameraDetections}
                   cameraFps={cameraFps}
+                  visualZones={visualZones}
                   onZonesUpdated={loadData}
                 />
               </div>

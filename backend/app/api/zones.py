@@ -8,6 +8,7 @@ from app.db.repositories.zone_repo import ZoneRepository
 from app.api.schemas import ZoneCreate, ZoneResponse
 from app.cv.pipeline import pipeline_manager
 from app.cv.zones import ZoneDefinition
+from app.cv.visual_memory import visual_memory_engine
 
 router = APIRouter(prefix="/api/zones", tags=["Zones"])
 
@@ -45,6 +46,25 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
     )
     created = await repo.create(zone)
 
+    # Register into Visual Memory Engine if live frame is available
+    pipe = pipeline_manager.get_pipeline(payload.camera_id)
+    frame = pipe.latest_frame if pipe else None
+    if frame is None and (payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE"):
+        from app.cv.usb_mobile import mobile_manager
+        web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+        if web_res:
+            frame = web_res[0]
+
+    if frame is not None:
+        visual_memory_engine.register_anchor(
+            zone_id=created.id,
+            camera_id=payload.camera_id,
+            name=created.name,
+            keyframe_bgr=frame,
+            polygon_points_norm=created.polygon,
+            severity=created.severity,
+        )
+
     # Sync with runtime CV pipeline
     target_cams = [payload.camera_id]
     if payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE":
@@ -72,14 +92,11 @@ async def delete_zone(zone_id: str, db: AsyncSession = Depends(get_db)):
     zone = await repo.get_by_id(zone_id)
     if not zone:
         raise HTTPException(status_code=404, detail="Zone not found")
+
     await repo.delete(zone_id)
+    visual_memory_engine.unregister_anchor(zone_id)
 
-    target_cams = [zone.camera_id]
-    if zone.camera_id.startswith("CAM_MOB") or zone.camera_id == "CAM_MOBILE":
-        target_cams.extend(["CAM_MOBILE", "CAM_MOB_24151JEG"])
+    for pipeline in pipeline_manager.pipelines.values():
+        pipeline.zone_engine.unregister_zone(zone_id)
 
-    for cid in set(target_cams):
-        pipeline = pipeline_manager.get_pipeline(cid)
-        if pipeline:
-            pipeline.zone_engine.unregister_zone(zone_id)
     return None

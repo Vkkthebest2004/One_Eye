@@ -19,6 +19,7 @@ from app.risk.engine import RiskEngine
 from app.events.event_manager import EventManager
 from app.alerts.dispatcher import dispatcher, AlertDispatcher
 from app.reasoning.interface import QwenReasoner, NoOpReasoner
+from app.cv.visual_memory import visual_memory_engine, TrackedVisualZone
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -208,6 +209,24 @@ class CameraPipeline:
             now=timestamp,
         )
 
+        # 3.5. Visual Danger Memory & Dynamic Homography Tracking
+        tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
+        for tvz in tracked_visual_zones:
+            if tvz.is_visible and len(tvz.polygon_norm) >= 3:
+                self.zone_engine.register_zone(
+                    ZoneDefinition(
+                        id=tvz.zone_id,
+                        name=tvz.name,
+                        camera_id=self.camera_id,
+                        polygon_points=tvz.polygon_norm,
+                        severity=tvz.severity,
+                        active=True,
+                    )
+                )
+            else:
+                if tvz.zone_id in self.zone_engine.zones:
+                    self.zone_engine.zones[tvz.zone_id].active = False
+
         # 4. Worker-Level Spatial, Temporal, and Risk Analysis
         for track in active_tracks:
             if track.category != "PERSON":
@@ -362,12 +381,25 @@ class CameraPipeline:
             for t in active_tracks
         ]
 
+        visual_zones_payload = [
+            {
+                "zone_id": tvz.zone_id,
+                "name": tvz.name,
+                "polygon": tvz.polygon_norm,
+                "is_visible": tvz.is_visible,
+                "confidence": tvz.match_confidence,
+                "inlier_count": tvz.inlier_count,
+            }
+            for tvz in tracked_visual_zones
+        ]
+
         await self.dispatcher.broadcast_detections(
             camera_id=self.camera_id,
             detections=self.latest_detections,
             tracks=self.latest_tracks,
             fps=self.measured_fps,
-            latency_ms=self.avg_inference_ms
+            latency_ms=self.avg_inference_ms,
+            visual_zones=visual_zones_payload,
         )
 
 

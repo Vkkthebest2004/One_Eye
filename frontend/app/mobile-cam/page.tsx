@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createZone } from '@/lib/api';
 
 export default function MobileCamPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const markerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -14,6 +16,14 @@ export default function MobileCamPage() {
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [quality, setQuality] = useState<'720p' | '1080p' | '480p'>('720p');
+
+  // Interactive Visual Danger Marking on Phone
+  const [isMarkingDanger, setIsMarkingDanger] = useState(false);
+  const [dangerPoints, setDangerPoints] = useState<[number, number][]>([]);
+  const [dangerName, setDangerName] = useState('Dangerous Machinery');
+  const [isBoxMode, setIsBoxMode] = useState(true);
+  const [dangerBoxStart, setDangerBoxStart] = useState<[number, number] | null>(null);
+  const [markerSavedMsg, setMarkerSavedMsg] = useState<string | null>(null);
 
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -330,6 +340,80 @@ export default function MobileCamPage() {
     }
   };
 
+  // Open Interactive Freeze Photo & Danger Marker on Phone
+  const handleOpenMarker = () => {
+    if (!videoRef.current || !markerCanvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = markerCanvasRef.current;
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+    setDangerPoints([]);
+    setDangerBoxStart(null);
+    setMarkerSavedMsg(null);
+    setIsMarkingDanger(true);
+  };
+
+  const handleMarkerClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = markerCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const nx = Math.min(1.0, Math.max(0.0, (e.clientX - rect.left) / rect.width));
+    const ny = Math.min(1.0, Math.max(0.0, (e.clientY - rect.top) / rect.height));
+
+    if (isBoxMode) {
+      if (!dangerBoxStart) {
+        setDangerBoxStart([nx, ny]);
+        setDangerPoints([[nx, ny]]);
+      } else {
+        const [x1, y1] = dangerBoxStart;
+        const xMin = Math.min(x1, nx);
+        const xMax = Math.max(x1, nx);
+        const yMin = Math.min(y1, ny);
+        const yMax = Math.max(y1, ny);
+        setDangerPoints([
+          [xMin, yMin],
+          [xMax, yMin],
+          [xMax, yMax],
+          [xMin, yMax],
+        ]);
+        setDangerBoxStart(null);
+      }
+    } else {
+      setDangerPoints((prev) => [...prev, [nx, ny]]);
+    }
+  };
+
+  const handleSaveMobileDangerZone = async () => {
+    if (dangerPoints.length < 3) {
+      alert('Please mark at least 3 points or complete the box around the dangerous place.');
+      return;
+    }
+    try {
+      const zoneId = `ZONE_MOB_${Date.now().toString().slice(-6)}`;
+      await createZone({
+        id: zoneId,
+        camera_id: 'CAM_MOBILE',
+        name: dangerName.trim() || 'Visual Danger Perimeter',
+        polygon: dangerPoints,
+        severity: 95,
+        warning_delay_seconds: 0.0,
+        critical_delay_seconds: 3.0,
+        active: true,
+      });
+      setMarkerSavedMsg('✅ Saved to Visual Memory! Homography Tracking Active.');
+      setTimeout(() => {
+        setIsMarkingDanger(false);
+        setMarkerSavedMsg(null);
+      }, 1400);
+    } catch (e: any) {
+      alert(`Error saving zone: ${e.message || 'Check backend connection'}`);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black flex flex-col justify-between text-white font-sans select-none overflow-hidden">
       {/* Hidden Canvas */}
@@ -358,8 +442,18 @@ export default function MobileCamPage() {
           </div>
         </div>
 
-        {/* Live Status Badge */}
+        {/* Action Button: Mark Danger Area directly on Phone */}
         <div className="flex items-center gap-2">
+          {isStreaming && (
+            <button
+              onClick={handleOpenMarker}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-mono font-bold shadow-lg flex items-center gap-1 border border-red-400/40 active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-sm">security</span>
+              📸 Mark Danger
+            </button>
+          )}
+
           <div
             className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 shadow-md ${
               isStreaming
@@ -372,10 +466,119 @@ export default function MobileCamPage() {
                 isStreaming ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
               }`}
             />
-            {isStreaming ? `${fps} FPS LIVE` : 'CONNECTING'}
+            {isStreaming ? `${fps} FPS` : 'CONNECTING'}
           </div>
         </div>
       </div>
+
+      {/* Interactive Freeze Photo Danger Marker Modal on Phone */}
+      {isMarkingDanger && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 overflow-y-auto">
+          <div className="flex justify-between items-center pb-2 border-b border-gray-700">
+            <h3 className="text-sm font-bold font-mono text-red-400 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-base">security</span>
+              MARK DANGER PLACE // VISUAL MEMORY
+            </h3>
+            <button
+              onClick={() => setIsMarkingDanger(false)}
+              className="p-1 rounded-lg bg-gray-800 text-gray-400 hover:text-white"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+          </div>
+
+          <div className="relative my-3 flex items-center justify-center bg-black rounded-xl overflow-hidden border border-gray-700">
+            <canvas
+              ref={markerCanvasRef}
+              onClick={handleMarkerClick}
+              className="w-full max-h-[50vh] object-contain cursor-crosshair"
+            />
+            {/* SVG Polygon Preview */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+              {dangerPoints.length >= 2 && (
+                <polygon
+                  points={dangerPoints.map(([x, y]) => `${x * 100}%,${y * 100}%`).join(' ')}
+                  fill="rgba(239, 68, 68, 0.25)"
+                  stroke="#ef4444"
+                  strokeWidth="3"
+                  strokeDasharray="6,4"
+                />
+              )}
+              {dangerPoints.map(([x, y], idx) => (
+                <circle
+                  key={idx}
+                  cx={`${x * 100}%`}
+                  cy={`${y * 100}%`}
+                  r="6"
+                  fill="#ef4444"
+                  stroke="#ffffff"
+                  strokeWidth="2"
+                />
+              ))}
+            </svg>
+          </div>
+
+          {markerSavedMsg ? (
+            <div className="p-3 bg-emerald-950/80 border border-emerald-500/50 rounded-xl text-center font-mono text-xs font-bold text-emerald-300">
+              {markerSavedMsg}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5 bg-gray-900/90 p-3 rounded-xl border border-gray-700">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-gray-400">
+                  {isBoxMode ? 'Tap 2 corners for box' : 'Tap points for polygon'} ({dangerPoints.length} pts)
+                </span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => { setIsBoxMode(true); setDangerPoints([]); setDangerBoxStart(null); }}
+                    className={`px-2 py-1 rounded text-[11px] font-bold ${isBoxMode ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    2-Click Box
+                  </button>
+                  <button
+                    onClick={() => { setIsBoxMode(false); setDangerPoints([]); setDangerBoxStart(null); }}
+                    className={`px-2 py-1 rounded text-[11px] font-bold ${!isBoxMode ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-300'}`}
+                  >
+                    Polygon
+                  </button>
+                  <button
+                    onClick={() => { setDangerPoints([]); setDangerBoxStart(null); }}
+                    className="px-2 py-1 bg-gray-800 text-gray-400 hover:text-white rounded text-[11px]"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap gap-1.5">
+                {['🚨 Dangerous Machine', '⚠️ High Voltage Area', '🛑 Forbidden Floor Zone'].map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setDangerName(name)}
+                    className={`px-2 py-1 rounded-md text-[10px] font-mono border transition ${
+                      dangerName === name
+                        ? 'bg-red-600/30 border-red-500 text-red-300 font-bold'
+                        : 'bg-gray-800 border-gray-700 text-gray-400'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handleSaveMobileDangerZone}
+                disabled={dangerPoints.length < 3}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 active:scale-95 text-white font-bold text-xs font-mono rounded-lg shadow-lg flex items-center justify-center gap-1.5 transition-all"
+              >
+                <span className="material-symbols-outlined text-sm">memory</span>
+                💾 SAVE TO VISUAL DANGER MEMORY
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Center Reticle / Start Button */}
       <div className="relative z-10 flex flex-col items-center justify-center flex-1 p-6">
