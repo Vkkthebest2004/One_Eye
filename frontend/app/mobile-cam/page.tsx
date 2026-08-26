@@ -34,49 +34,70 @@ export default function MobileCamPage() {
     }
   };
 
+  const getCameraConstraints = async (mode: 'environment' | 'user'): Promise<MediaStreamConstraints> => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+
+      // If devices have labels, find the matching hardware camera
+      if (videoInputs.length > 0 && videoInputs[0].label) {
+        const match = videoInputs.find((d) => {
+          const l = d.label.toLowerCase();
+          if (mode === 'environment') {
+            return l.includes('back') || l.includes('rear') || l.includes('0') || l.includes('environment');
+          } else {
+            return l.includes('front') || l.includes('user') || l.includes('selfie') || l.includes('1');
+          }
+        });
+        if (match && match.deviceId) {
+          return {
+            video: { deviceId: { exact: match.deviceId } },
+            audio: false,
+          };
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return {
+      video: { facingMode: { ideal: mode } },
+      audio: false,
+    };
+  };
+
   // Start Camera Stream (Direct Lens Switching by DeviceId or FacingMode)
   const startCamera = async (target: string) => {
     try {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current.getTracks().forEach((t) => {
+          try {
+            t.stop();
+          } catch (e) {}
+        });
         streamRef.current = null;
       }
 
-      let constraints: MediaStreamConstraints = { audio: false, video: true };
+      const mode: 'environment' | 'user' = target === 'user' ? 'user' : 'environment';
+      let constraints: MediaStreamConstraints = await getCameraConstraints(mode);
 
       if (target && target.length > 20) {
-        // Target is an exact deviceId
         constraints = {
-          video: {
-            deviceId: { exact: target },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        };
-      } else if (target === 'user' || target === 'environment') {
-        // Target is facingMode string
-        constraints = {
-          video: {
-            facingMode: target,
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+          video: { deviceId: { exact: target } },
           audio: false,
         };
       }
 
-      let stream: MediaStream;
+      let stream: MediaStream | null = null;
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (err1) {
-        // Fallback with relaxed resolution
-        if (target === 'environment' || target === 'user') {
+      } catch (e1) {
+        try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: target },
+            video: { facingMode: mode },
             audio: false,
           });
-        } else {
+        } catch (e2) {
           stream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: false,
@@ -103,13 +124,13 @@ export default function MobileCamPage() {
         activeLabel.toLowerCase().includes('back') ||
         activeLabel.toLowerCase().includes('rear') ||
         activeLabel.toLowerCase().includes('0') ||
-        target === 'environment';
+        mode === 'environment';
 
       setFacingMode(isBack ? 'environment' : 'user');
       setSelectedDeviceId(currentTrack?.getSettings()?.deviceId || '');
 
       // Check for torch capability
-      const capabilities: any = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
+      const capabilities: any = currentTrack?.getCapabilities ? currentTrack.getCapabilities() : {};
       setHasTorch(!!capabilities.torch);
 
       setStatusMsg(`Active: ${activeLabel}`);
@@ -382,6 +403,23 @@ export default function MobileCamPage() {
       {/* Bottom Controls Bar */}
       <div className="relative z-10 p-5 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-3">
         <div className="text-center text-xs font-mono text-gray-300">{statusMsg}</div>
+
+        {/* Hardware Camera Sensor Selector Dropdown */}
+        {videoDevices.length > 0 && (
+          <div className="flex justify-center">
+            <select
+              value={selectedDeviceId}
+              onChange={(e) => startCamera(e.target.value)}
+              className="bg-black/70 backdrop-blur text-[11px] font-mono text-cyan-300 border border-cyan-500/40 rounded-lg px-3 py-1.5 outline-none"
+            >
+              {videoDevices.map((d, idx) => (
+                <option key={d.deviceId || idx} value={d.deviceId} className="bg-gray-900 text-white">
+                  {d.label || (idx === 0 ? '📷 Primary Rear Camera (Lens 0)' : '🤳 Front Selfie Camera (Lens 1)')}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex items-center justify-around gap-2">
           {/* Direct Lens Switcher: Rear vs Front */}
