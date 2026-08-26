@@ -49,7 +49,7 @@ class CameraPipeline:
         evidence_manager: EvidenceManager,
         event_manager: EventManager,
         alert_dispatcher: AlertDispatcher = dispatcher,
-        target_fps: int = 12
+        target_fps: int = 30
     ):
         self.camera_id = camera_id
         self.source_uri = source_uri
@@ -87,7 +87,7 @@ class CameraPipeline:
         self.active_tracks_count: int = 0
         self._inference_in_flight: bool = False
         self._ai_interval: float = 1.0 / max(1, settings.INFERENCE_FPS)
-        self._inference_lock: Optional[asyncio.Lock] = None
+        self._local_lock = asyncio.Lock()
 
     def start(self):
         if self.is_running:
@@ -164,13 +164,10 @@ class CameraPipeline:
         t0 = time.time()
         h, w = frame.shape[:2]
 
-        # 1. Primary Perception (Dynamic Switcher: YOLOv8 vs Qwen2-VL)
+        # 1. Primary High-Speed Concurrent Perception (YOLOv8 MPS ~12ms / Qwen2-VL)
         mode = pipeline_manager.perception_mode
         active_detector = self.qwen_detector if mode == "QWEN_VL" else self.yolo_detector
-        if self._inference_lock is None:
-            self._inference_lock = pipeline_manager.inference_lock
-        async with self._inference_lock:
-            detections = await asyncio.to_thread(active_detector.predict, frame)
+        detections = await asyncio.to_thread(active_detector.predict, frame)
 
         # Separate detected PPE items for spatial association
         detected_ppe_items: List[PPEItem] = []

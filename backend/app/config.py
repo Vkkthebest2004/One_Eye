@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # detection.  The base COCO model only supplies person detection.
     PPE_MODEL_PATH: str = ""
     YOLO_CONFIDENCE: float = 0.25
-    INFERENCE_FPS: int = 15
+    INFERENCE_FPS: int = 30
 
     # Evidence and Storage
     EVIDENCE_DIR: str = ""
