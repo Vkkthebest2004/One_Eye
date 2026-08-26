@@ -109,7 +109,7 @@ class Detector(BaseDetector):
     """
     def __init__(
         self,
-        model_path: str = "yolov8n.pt",
+        model_path: str = "yolov8s.pt",
         confidence_threshold: float = 0.45,
         device: str = "mps",
         ppe_model_path: str = "",
