@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -9,45 +9,60 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FallStatus:
     worker_id: int
-    state: str # "NORMAL", "UNSTABLE", "POSSIBLE_FALL", "FALL_CONFIRMED"
+    state: str # "STANDING", "FALLING", "FALLEN", "FALL_CONFIRMED"
     aspect_ratio: float
     is_fall: bool
     confidence: float
     duration_sec: float
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "worker_id": self.worker_id,
+            "state": self.state,
+            "aspect_ratio": round(self.aspect_ratio, 2),
+            "is_fall": self.is_fall,
+            "confidence": round(self.confidence, 3),
+            "duration_sec": round(self.duration_sec, 1)
+        }
+
 
 class FallDetector:
     """
-    Temporal Fall Detection Engine.
-    Requires multi-frame posture confirmation (aspect ratio change and ground proximity)
-    to eliminate sitting / bending false positives.
+    Temporal Pose & Fall Confirmation Engine.
+    
+    Progression:
+    1. STANDING: Normal upright human posture (aspect ratio h/w > 1.4).
+    2. FALLING: Rapid downward velocity or sudden posture transition.
+    3. FALLEN: Horizontal orientation on ground plane (aspect ratio < 0.9).
+    4. FALL_CONFIRMED: Remains horizontal on floor for >= confirmation_duration_sec.
+       Eliminates sitting, stooping, or bending false positives.
     """
     def __init__(self, confirmation_duration_sec: float = 1.5):
         self.confirmation_duration_sec = confirmation_duration_sec
         # worker_id -> {'first_down_time': float, 'last_seen': float, 'state': str, 'aspect_ratios': list}
-        self.worker_fall_states: Dict[int, Dict] = {}
+        self.worker_fall_states: Dict[int, Dict[str, Any]] = {}
 
     def evaluate_worker(
         self,
         worker_id: int,
         bbox: Tuple[float, float, float, float], # (x1, y1, x2, y2)
         velocity: Tuple[float, float] = (0.0, 0.0),
-        keypoints: Optional[List] = None,
+        keypoints: Optional[List[List[float]]] = None,
         timestamp: Optional[float] = None
     ) -> FallStatus:
         now = timestamp or time.time()
         w = max(1.0, bbox[2] - bbox[0])
         h = max(1.0, bbox[3] - bbox[1])
-        aspect_ratio = h / w # Normal upright person: aspect ratio typically > 1.8; Fallen person: < 1.0
+        aspect_ratio = h / w # Upright person: h/w > 1.5; Fallen person: h/w < 0.9
 
-        is_horizontal = aspect_ratio < 0.95
-        is_unstable = aspect_ratio < 1.3 or abs(velocity[1]) > 50.0 # Fast downward motion
+        is_horizontal = aspect_ratio < 0.92
+        is_falling_motion = (aspect_ratio < 1.25) and (velocity[1] > 35.0) # Downward velocity spike
 
         if worker_id not in self.worker_fall_states:
             self.worker_fall_states[worker_id] = {
                 "first_down_time": None,
                 "last_seen": now,
-                "state": "NORMAL",
+                "state": "STANDING",
                 "aspect_ratios": [aspect_ratio]
             }
 
@@ -64,20 +79,20 @@ class FallDetector:
         if is_horizontal:
             if state_info["first_down_time"] is None:
                 state_info["first_down_time"] = now
-                current_state = "POSSIBLE_FALL"
+                current_state = "FALLEN"
             else:
                 duration = now - state_info["first_down_time"]
                 if duration >= self.confirmation_duration_sec:
                     current_state = "FALL_CONFIRMED"
-                    confidence = 0.94
+                    confidence = 0.95
                 else:
-                    current_state = "POSSIBLE_FALL"
-        elif is_unstable:
-            if current_state != "FALL_CONFIRMED":
-                current_state = "UNSTABLE"
-        else:
+                    current_state = "FALLEN"
+        elif is_falling_motion:
+            if current_state not in ("FALLEN", "FALL_CONFIRMED"):
+                current_state = "FALLING"
+        elif aspect_ratio > 1.35:
             state_info["first_down_time"] = None
-            current_state = "NORMAL"
+            current_state = "STANDING"
 
         state_info["state"] = current_state
 

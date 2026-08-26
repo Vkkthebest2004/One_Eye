@@ -15,6 +15,12 @@ class ZoneDefinition:
     severity: int = 80 # 0-100
     allowed_classes: List[str] = None
     active: bool = True
+    zone_type: str = "NO_ENTRY"
+    warning_delay_seconds: float = 2.0
+    critical_delay_seconds: float = 8.0
+    voice_alert_enabled: bool = True
+    siren_enabled: bool = False
+    supervisor_alert_enabled: bool = False
 
     def __post_init__(self):
         if self.allowed_classes is None:
@@ -60,6 +66,9 @@ class ZoneEngine:
     def unregister_zone(self, zone_id: str):
         if zone_id in self.zones:
             del self.zones[zone_id]
+
+    def get_zone(self, zone_id: str) -> Optional[ZoneDefinition]:
+        return self.zones.get(zone_id)
 
     def clear_zones(self, camera_id: Optional[str] = None):
         if camera_id:
