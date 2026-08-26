@@ -166,9 +166,9 @@ class CameraPipeline:
         # Separate detected PPE items for spatial association
         detected_ppe_items: List[PPEItem] = []
         for d in detections:
-            if d.category in ("PPE_HELMET", "PPE_VEST"):
+            if d.category in ("PPE_HELMET", "NO_HELMET", "PPE_VEST", "NO_VEST"):
                 detected_ppe_items.append(PPEItem(
-                    item_type="HELMET" if d.category == "PPE_HELMET" else "VEST",
+                    item_type=d.category,
                     confidence=d.confidence,
                     bbox=d.bbox,
                     center=d.center

@@ -9,8 +9,10 @@ logger = logging.getLogger(__name__)
 
 # Standardized Perception Taxonomy
 PERSON_CLASSES = {"person", "worker", "human", "operator", "contractor"}
-PPE_HELMET_CLASSES = {"helmet", "hard_hat", "hardhat", "safety_helmet", "hat"}
-PPE_VEST_CLASSES = {"vest", "safety_vest", "high_vis_vest", "jacket"}
+PPE_HELMET_CLASSES = {"helmet", "hard_hat", "hardhat", "safety_helmet", "hat", "hard-hat"}
+NO_HELMET_CLASSES = {"no_helmet", "no_hard_hat", "no-helmet", "no-hardhat", "no_hardhat", "no-hard-hat"}
+PPE_VEST_CLASSES = {"vest", "safety_vest", "high_vis_vest", "jacket", "safety-vest"}
+NO_VEST_CLASSES = {"no_vest", "no_safety_vest", "no-vest"}
 MACHINE_CLASSES = {
     "machine", "machinery", "press", "hydraulic_press", "conveyor",
     "crane", "forklift", "robotic_arm", "vehicle", "truck", "car"
@@ -25,7 +27,7 @@ class Detection:
     """
     class_id: int
     class_name: str
-    category: str # "PERSON", "PPE_HELMET", "PPE_VEST", "MACHINE", "VEHICLE", "FIRE_SMOKE", "OTHER"
+    category: str # "PERSON", "PPE_HELMET", "NO_HELMET", "PPE_VEST", "NO_VEST", "MACHINE", "VEHICLE", "FIRE_SMOKE", "OTHER"
     confidence: float
     x1: float
     y1: float
@@ -115,11 +117,26 @@ class Detector(BaseDetector):
         self.model_path = model_path
         self.confidence_threshold = confidence_threshold
         self.device = device
-        self.ppe_model_path = ppe_model_path
+        self.ppe_model_path = ppe_model_path or self._find_default_ppe_model()
         self.model = None
         self.ppe_model = None
         self.is_loaded = False
         self._init_model()
+
+    @staticmethod
+    def _find_default_ppe_model() -> str:
+        import os
+        from pathlib import Path
+        candidates = [
+            Path("models/ppe_yolov8n.pt"),
+            Path("backend/models/ppe_yolov8n.pt"),
+            Path("models/hardhat_yolov8n.pt"),
+            Path("backend/models/hardhat_yolov8n.pt"),
+        ]
+        for c in candidates:
+            if c.exists():
+                return str(c)
+        return ""
 
     def _categorize_class(self, class_name: str) -> str:
         name_lower = class_name.lower().replace("-", "_").replace(" ", "_")
@@ -127,8 +144,12 @@ class Detector(BaseDetector):
             return "PERSON"
         if name_lower in PPE_HELMET_CLASSES:
             return "PPE_HELMET"
+        if name_lower in NO_HELMET_CLASSES:
+            return "NO_HELMET"
         if name_lower in PPE_VEST_CLASSES:
             return "PPE_VEST"
+        if name_lower in NO_VEST_CLASSES:
+            return "NO_VEST"
         if name_lower in MACHINE_CLASSES:
             return "MACHINE"
         if name_lower in FIRE_SMOKE_CLASSES:
@@ -155,8 +176,9 @@ class Detector(BaseDetector):
             
             if self.ppe_model_path:
                 try:
-                    logger.info(f"Loading specialized PPE detector '{self.ppe_model_path}'...")
+                    logger.info(f"Loading specialized YOLO PPE detector '{self.ppe_model_path}'...")
                     self.ppe_model = YOLO(self.ppe_model_path)
+                    logger.info(f"YOLO PPE detector successfully online ({self.ppe_model_path})")
                 except Exception as exc:
                     logger.warning(f"Could not load custom PPE model ({exc}); using integrated perception.")
             
@@ -173,6 +195,7 @@ class Detector(BaseDetector):
 
         if self.is_loaded and self.model is not None:
             try:
+                # 1. Primary COCO / Industrial Detection
                 results = self.model(
                     frame,
                     conf=self.confidence_threshold,
@@ -193,7 +216,7 @@ class Detector(BaseDetector):
                         center_x = (x1 + x2) / 2.0
                         center_y = (y1 + y2) / 2.0
                         foot_x = center_x
-                        foot_y = y2 # Base contact point on ground plane
+                        foot_y = y2
                         head_x = center_x
                         head_y = y1
 
@@ -213,6 +236,41 @@ class Detector(BaseDetector):
                             head_x=head_x,
                             head_y=head_y
                         ))
+
+                # 2. Specialized PPE Detection Model Inference
+                if self.ppe_model is not None:
+                    ppe_results = self.ppe_model(
+                        frame,
+                        conf=max(0.20, self.confidence_threshold - 0.05),
+                        device=self.device,
+                        verbose=False
+                    )
+                    for r in ppe_results:
+                        for box in r.boxes:
+                            cls_id = int(box.cls[0].item())
+                            cls_name = self.ppe_model.names.get(cls_id, f"ppe_{cls_id}")
+                            category = self._categorize_class(cls_name)
+                            conf = float(box.conf[0].item())
+                            xyxy = box.xyxy[0].cpu().numpy()
+                            x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
+
+                            detections.append(Detection(
+                                class_id=cls_id + 1000,
+                                class_name=cls_name,
+                                category=category,
+                                confidence=conf,
+                                x1=x1,
+                                y1=y1,
+                                x2=x2,
+                                y2=y2,
+                                center_x=(x1 + x2) / 2.0,
+                                center_y=(y1 + y2) / 2.0,
+                                foot_x=(x1 + x2) / 2.0,
+                                foot_y=y2,
+                                head_x=(x1 + x2) / 2.0,
+                                head_y=y1
+                            ))
+
                 return detections
             except Exception as e:
                 logger.error(f"Inference error in detector: {e}")

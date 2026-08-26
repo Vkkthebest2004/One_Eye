@@ -43,6 +43,18 @@ class PPEStatus:
         }
 
 
+@dataclass
+class PPEAssociationResult:
+    matched_helmet: Optional[PPEItem] = None
+    matched_no_helmet: Optional[PPEItem] = None
+    matched_vest: Optional[PPEItem] = None
+    matched_no_vest: Optional[PPEItem] = None
+
+    def __iter__(self):
+        # Backwards compatible unpacking for (matched_helmet, matched_vest)
+        return iter((self.matched_helmet, self.matched_vest))
+
+
 class PPEEngine:
     """
     Production-Grade PPE Compliance & Spatial Association Engine.
@@ -51,7 +63,7 @@ class PPEEngine:
     1. Spatial Association Layer:
        - Extracts Head ROI (upper 25-35% of person bounding box)
        - Extracts Body ROI (middle 20-75% of person bounding box)
-       - Matches detected PPE objects (helmets, vests) using spatial containment and IoU.
+       - Matches detected PPE objects (helmets, vests, no-helmets) using spatial containment and IoU.
     2. Heuristic / Color Fallback:
        - Inspects HSV color distributions for bright hardhats and high-vis vests when
          standalone PPE detector is unconfigured or low-confidence.
@@ -89,27 +101,43 @@ class PPEEngine:
         self,
         person_bbox: Tuple[float, float, float, float],
         detected_ppe_items: List[PPEItem]
-    ) -> Tuple[Optional[PPEItem], Optional[PPEItem]]:
+    ) -> PPEAssociationResult:
         """
-        Spatially associates detected helmets and vests to the worker's Head and Body ROIs.
+        Spatially associates detected helmets, no-helmets, vests, and no-vests to the worker's Head and Body ROIs.
         """
         head_roi = self.get_head_roi(person_bbox)
         body_roi = self.get_body_roi(person_bbox)
 
         matched_helmet: Optional[PPEItem] = None
+        matched_no_helmet: Optional[PPEItem] = None
         matched_vest: Optional[PPEItem] = None
+        matched_no_vest: Optional[PPEItem] = None
 
         for item in detected_ppe_items:
-            if item.item_type in ("HELMET", "HARD_HAT", "HAT"):
+            itype = item.item_type.upper()
+            if itype in ("HELMET", "HARD_HAT", "HAT", "HARDHAT", "PPE_HELMET"):
                 if self.is_point_inside_roi(item.center, head_roi):
                     if matched_helmet is None or item.confidence > matched_helmet.confidence:
                         matched_helmet = item
-            elif item.item_type in ("VEST", "SAFETY_VEST"):
+            elif itype in ("NO_HELMET", "NO_HARD_HAT", "NO_HARDHAT", "NO-HELMET", "NO-HARDHAT"):
+                if self.is_point_inside_roi(item.center, head_roi):
+                    if matched_no_helmet is None or item.confidence > matched_no_helmet.confidence:
+                        matched_no_helmet = item
+            elif itype in ("VEST", "SAFETY_VEST", "PPE_VEST"):
                 if self.is_point_inside_roi(item.center, body_roi):
                     if matched_vest is None or item.confidence > matched_vest.confidence:
                         matched_vest = item
+            elif itype in ("NO_VEST", "NO_SAFETY_VEST", "NO-VEST"):
+                if self.is_point_inside_roi(item.center, body_roi):
+                    if matched_no_vest is None or item.confidence > matched_no_vest.confidence:
+                        matched_no_vest = item
 
-        return matched_helmet, matched_vest
+        return PPEAssociationResult(
+            matched_helmet=matched_helmet,
+            matched_no_helmet=matched_no_helmet,
+            matched_vest=matched_vest,
+            matched_no_vest=matched_no_vest
+        )
 
     def analyze_worker(
         self,
@@ -125,17 +153,26 @@ class PPEEngine:
         detected_ppe_items = detected_ppe_items or []
 
         matched_helmet: Optional[PPEItem] = None
+        matched_no_helmet: Optional[PPEItem] = None
         matched_vest: Optional[PPEItem] = None
+        matched_no_vest: Optional[PPEItem] = None
         requires_vlm = False
 
         # 1. First priority: Spatial association with detected PPE objects
         if detected_ppe_items:
-            matched_helmet, matched_vest = self.associate_ppe_detections(person_bbox, detected_ppe_items)
+            res = self.associate_ppe_detections(person_bbox, detected_ppe_items)
+            matched_helmet = res.matched_helmet
+            matched_no_helmet = res.matched_no_helmet
+            matched_vest = res.matched_vest
+            matched_no_vest = res.matched_no_vest
 
         # 2. Helmet Evaluation
         if explicit_helmet is not None:
             has_helmet = explicit_helmet
             helmet_conf = 0.95
+        elif matched_no_helmet is not None and (matched_helmet is None or matched_no_helmet.confidence >= matched_helmet.confidence):
+            has_helmet = False
+            helmet_conf = matched_no_helmet.confidence
         elif matched_helmet is not None:
             has_helmet = True
             helmet_conf = matched_helmet.confidence
