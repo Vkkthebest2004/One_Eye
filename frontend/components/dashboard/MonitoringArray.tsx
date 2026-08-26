@@ -361,9 +361,13 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
                     }`}
                     onError={(e) => {
                       const target = e.currentTarget;
-                      setTimeout(() => {
-                        target.src = getMediaUrl(`/api/cameras/${cam.id}/stream?t=${Date.now()}`);
-                      }, 1500);
+                      const retries = parseInt(target.getAttribute('data-retries') || '0', 10);
+                      if (retries < 2) {
+                        target.setAttribute('data-retries', String(retries + 1));
+                        setTimeout(() => {
+                          target.src = getMediaUrl(`/api/cameras/${cam.id}/stream?r=${Date.now()}`);
+                        }, 4000);
+                      }
                     }}
                   />
                 ) : (
