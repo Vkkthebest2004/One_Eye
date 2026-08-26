@@ -1,5 +1,6 @@
 import pytest
 from app.cv.exposure import ExposureTracker
+from app.cv.ppe import PPEEngine
 
 
 def test_exposure_accumulation_and_escalation():
@@ -29,3 +30,14 @@ def test_exposure_accumulation_and_escalation():
     # Frame 3: Worker exits hazard
     rec3 = tracker.update_exposure("CAM_01", 7, "RESTRICTED_ZONE", False, timestamp=112.0)
     assert rec3.is_active is False
+
+
+def test_ppe_violation_requires_temporal_confirmation():
+    engine = PPEEngine(persistence_threshold_sec=1.0)
+
+    first = engine.analyze_worker(7, None, None, explicit_helmet=False, explicit_vest=True, timestamp=100.0)
+    confirmed = engine.analyze_worker(7, None, None, explicit_helmet=False, explicit_vest=True, timestamp=101.1)
+
+    assert first.is_violation is False
+    assert confirmed.is_violation is True
+    assert confirmed.missing_items == ["HELMET"]

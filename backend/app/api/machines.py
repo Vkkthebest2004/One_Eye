@@ -56,7 +56,11 @@ async def create_machine(payload: MachineCreate, db: AsyncSession = Depends(get_
 @router.delete("/{machine_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_machine(machine_id: str, db: AsyncSession = Depends(get_db)):
     repo = MachineRepository(db)
-    deleted = await repo.delete(machine_id)
-    if not deleted:
+    machine = await repo.get_by_id(machine_id)
+    if not machine:
         raise HTTPException(status_code=404, detail="Machine not found")
+    deleted = await repo.delete(machine_id)
+    pipeline = pipeline_manager.get_pipeline(machine.camera_id)
+    if pipeline:
+        pipeline.proximity_engine.unregister_machine(machine_id)
     return None

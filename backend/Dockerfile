@@ -12,7 +12,6 @@ COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend/ /app/backend/
-COPY configs/ /app/configs/
 COPY scripts/ /app/scripts/
 
 ENV PYTHONPATH=/app/backend

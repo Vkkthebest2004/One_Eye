@@ -45,7 +45,8 @@ class ConsoleChannel(AlertChannel):
         sev = event.get("severity", "INFO")
         eid = event.get("event_id", "UNKNOWN")
         cam = event.get("camera_id", "CAM")
-        worker = event.get("worker_id", "N/A")
+        worker_id = event.get("worker_id")
+        worker = "PLANT-WIDE" if worker_id in (None, 0) else f"#{worker_id}"
         risk = event.get("risk_score", 0)
         hazards = ", ".join(event.get("hazard_types", []))
 
@@ -54,7 +55,7 @@ class ConsoleChannel(AlertChannel):
 
         print(f"\n{color}═══════════════════════════════════════════════════════════")
         print(f"🚨 [ONE EYE ALERT] [{sev}] Risk {risk}/100 | Event: {eid}")
-        print(f"📍 Camera: {cam} | Target: Worker #{worker}")
+        print(f"📍 Camera: {cam} | Target: {worker}")
         print(f"⚠️ Hazards: {hazards}")
         print(f"🛠️ Action: {event.get('recommended_action', 'None')}")
         print(f"═══════════════════════════════════════════════════════════{reset}\n")
@@ -143,7 +144,9 @@ class MockRelayChannel(AlertChannel):
     Mock implementation for development; extensible to GPIO/Serial/HTTP.
     """
     def __init__(self):
-        super().__init__(name="SAFETY_RELAY", enabled=settings.ENABLE_RELAY or True)
+        # This remains a mock implementation. Never report a physical relay as
+        # active unless an operator explicitly enables the relay channel.
+        super().__init__(name="SAFETY_RELAY", enabled=settings.ENABLE_RELAY)
         self.is_triggered = False
 
     async def send(self, event: Dict[str, Any]) -> bool:

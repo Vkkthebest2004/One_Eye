@@ -11,6 +11,7 @@ from app.api.schemas import (
     EventFalsePositiveRequest
 )
 from app.alerts.dispatcher import dispatcher
+from app.cv.pipeline import pipeline_manager
 
 router = APIRouter(prefix="/api/events", tags=["Events"])
 
@@ -69,6 +70,7 @@ async def acknowledge_event(
         status="ACKNOWLEDGED",
         actor=payload.actor
     )
+    pipeline_manager.event_manager.sync_operator_action(event_id, "ACKNOWLEDGED")
     return SafetyEventResponse.model_validate(updated)
 
 
@@ -88,6 +90,7 @@ async def resolve_event(
         status="RESOLVED",
         actor=payload.actor
     )
+    pipeline_manager.event_manager.sync_operator_action(event_id, "RESOLVED")
     return SafetyEventResponse.model_validate(updated)
 
 
@@ -107,4 +110,5 @@ async def false_positive_event(
         status="FALSE_POSITIVE",
         actor=payload.actor
     )
+    pipeline_manager.event_manager.sync_operator_action(event_id, "FALSE_POSITIVE")
     return SafetyEventResponse.model_validate(updated)

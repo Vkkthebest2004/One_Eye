@@ -33,10 +33,40 @@ class Zone(Base):
     polygon = Column(JSON, nullable=False) # [[x1, y1], [x2, y2], ...]
     severity = Column(Integer, default=80) # 0-100
     allowed_classes = Column(JSON, default=list) # e.g. ["authorized_personnel"]
+    # Per-zone escalation policy. Kept as JSON to let a safety officer tune a
+    # camera boundary without requiring a deployment for every policy change.
+    policy = Column(JSON, nullable=True, default=dict)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     camera = relationship("Camera", back_populates="zones")
+
+    def _policy_value(self, key, default):
+        return (self.policy or {}).get(key, default)
+
+    @property
+    def zone_type(self):
+        return self._policy_value("zone_type", "NO_ENTRY")
+
+    @property
+    def warning_delay_seconds(self):
+        return self._policy_value("warning_delay_seconds", 2.0)
+
+    @property
+    def critical_delay_seconds(self):
+        return self._policy_value("critical_delay_seconds", 8.0)
+
+    @property
+    def voice_alert_enabled(self):
+        return self._policy_value("voice_alert_enabled", True)
+
+    @property
+    def siren_enabled(self):
+        return self._policy_value("siren_enabled", False)
+
+    @property
+    def supervisor_alert_enabled(self):
+        return self._policy_value("supervisor_alert_enabled", False)
 
 
 class Machine(Base):
@@ -69,6 +99,7 @@ class SafetyEvent(Base):
 
     id = Column(String(64), primary_key=True, index=True) # e.g. EVT-20260825-0001
     camera_id = Column(String(64), ForeignKey("cameras.id"), nullable=False)
+    zone_id = Column(String(64), ForeignKey("zones.id"), nullable=True, index=True)
     worker_id = Column(Integer, nullable=False, index=True)
     hazard_types = Column(JSON, nullable=False) # ["PPE_VIOLATION", "RESTRICTED_ZONE", ...]
     primary_hazard = Column(String(64), nullable=False) # Primary classification
