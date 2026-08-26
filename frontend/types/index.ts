@@ -27,6 +27,8 @@ export interface Zone {
   severity: number;
   allowed_classes: string[];
   active: boolean;
+  warning_delay_seconds?: number;
+  critical_delay_seconds?: number;
   created_at: string;
 }
 
