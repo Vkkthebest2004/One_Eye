@@ -78,8 +78,11 @@ export default function MobileCamPage() {
   const connectWebSocket = () => {
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
-      const hostname = window.location.hostname || 'localhost';
-      const wsUrl = `ws://${hostname}:8001/api/mobile/ws/stream/CAM_MOBILE`;
+      const configuredWs = process.env.NEXT_PUBLIC_WS_URL;
+      const wsBase = configuredWs
+        ? configuredWs.replace(/\/ws(?:\/events)?$/, '')
+        : `ws://${window.location.hostname || 'localhost'}:8001`;
+      const wsUrl = `${wsBase}/api/mobile/ws/stream/CAM_MOBILE`;
 
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';

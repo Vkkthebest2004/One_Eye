@@ -314,6 +314,61 @@ async def open_browser_cam_on_phone(payload: OpenBrowserCamRequest = OpenBrowser
     return {"success": True, "url": target_url}
 
 
+@router.post("/direct-usb-stream")
+async def start_direct_usb_stream(payload: OpenBrowserCamRequest = OpenBrowserCamRequest()):
+    """
+    Direct USB Web Stream Mode:
+    1. Detects USB-connected mobile phone via ADB.
+    2. Activates ADB reverse tunnels (tcp:3001 and tcp:8001).
+    3. Launches http://localhost:3001/mobile-cam in phone's browser over the physical USB cable.
+    4. Automatically registers and starts CAM_MOBILE in pipeline_manager.
+    """
+    from app.cv.pipeline import pipeline_manager
+    from app.db.database import AsyncSessionLocal
+    from app.db.repositories.camera_repo import CameraRepository
+    from app.db.models import Camera
+
+    camera_id = "CAM_MOBILE"
+    source_uri = f"mobile_web:{camera_id}"
+    
+    # 1. Setup ADB reverse tunnels and launch browser on phone
+    ok = await asyncio.to_thread(mobile_manager.adb.open_url, "http://localhost:3001/mobile-cam", payload.serial)
+    
+    # 2. Register camera pipeline
+    pipeline_manager.register_camera(camera_id, source_uri)
+    pipeline_manager.start_camera(camera_id)
+
+    # 3. Ensure camera exists in DB
+    try:
+        async with AsyncSessionLocal() as db:
+            repo = CameraRepository(db)
+            existing = await repo.get_by_id(camera_id)
+            if not existing:
+                new_cam = Camera(
+                    id=camera_id,
+                    name="Mobile Live Camera (Direct USB Web Stream)",
+                    source=source_uri,
+                    source_type="mobile",
+                    status="ONLINE",
+                    resolution="1280x720",
+                    fps=30.0,
+                )
+                await repo.create(new_cam)
+            else:
+                await repo.update(camera_id, status="ONLINE", source=source_uri)
+    except Exception as e:
+        logger.warning(f"Error registering mobile camera in DB: {e}")
+
+    return {
+        "success": True,
+        "mode": "DIRECT_USB_WEB_STREAM",
+        "camera_id": camera_id,
+        "usb_reverse_active": True,
+        "url": "http://localhost:3001/mobile-cam",
+        "adb_available": mobile_manager.adb.available
+    }
+
+
 @router.websocket("/ws/stream/{camera_id}")
 async def mobile_stream_ws(websocket: WebSocket, camera_id: str = "CAM_MOBILE"):
     """

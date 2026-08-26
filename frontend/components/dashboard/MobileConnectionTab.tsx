@@ -11,6 +11,7 @@ import {
   getHostInfo,
   launchCameraOnPhone,
   openBrowserCamOnPhone,
+  startDirectUsbStream,
   MobileStatus,
   MobileDevice,
   MobileConnectResponse,
@@ -189,6 +190,22 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
     }
   }, [onDeviceConnected]);
 
+  const handleStartDirectUsbWebStream = async (serial?: string) => {
+    setIsLaunching(true);
+    try {
+      const res = await startDirectUsbStream(serial);
+      setToast({
+        type: 'success',
+        msg: '🚀 Direct USB Web Stream initiated! ADB reverse active & browser opened on phone.',
+      });
+      if (onDeviceConnected) onDeviceConnected();
+    } catch (e: any) {
+      setToast({ type: 'error', msg: `Direct USB Stream error: ${e.message}` });
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+
   return (
     <div className="w-full space-y-5">
       {/* ── Toast ──────────────────────────────────────────────────── */}
@@ -212,27 +229,38 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
         </div>
       )}
 
-      {/* ── Instant Mobile Web Camera Banner ──── */}
+      {/* ── Instant Mobile Web Camera Banner with Direct USB ──── */}
       <div className="bg-gradient-to-r from-blue-900/40 via-surface-container to-blue-950/40 border border-primary/40 rounded-xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center shadow-md">
-              <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
+              <span className="material-symbols-outlined text-2xl">usb</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-on-surface">Instant Mobile Camera (Works on ANY Phone)</h3>
+                <h3 className="text-base font-bold text-on-surface">Direct USB Web Stream Mode</h3>
                 <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 font-mono text-[10px] font-bold">
-                  ZERO SETUP
+                  PLUG &amp; PLAY
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant mt-0.5">
-                Open this link on your iPhone or Android phone (same Wi-Fi or USB tethering) to stream live camera frames directly into ONE EYE!
+                Streams 30 FPS video directly over the physical USB cable via ADB reverse tunneling (Zero Wi-Fi needed).
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            {/* 1-Click Launch Direct USB Stream */}
+            <button
+              onClick={() => handleStartDirectUsbWebStream()}
+              disabled={isLaunching}
+              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-mono font-bold rounded-lg shadow-sm transition-all"
+              title="Reverse tunnel ports 3001 & 8001 and open camera broadcast on connected phone"
+            >
+              <span className="material-symbols-outlined text-sm">bolt</span>
+              {isLaunching ? 'CONNECTING USB...' : 'LAUNCH DIRECT USB STREAM'}
+            </button>
+
             <a
               href={hostInfo?.web_cam_url || '/mobile-cam'}
               target="_blank"
@@ -240,7 +268,7 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
               className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white text-xs font-mono font-bold rounded-lg shadow-sm hover:bg-primary/90 transition-all"
             >
               <span className="material-symbols-outlined text-sm">open_in_new</span>
-              {hostInfo?.web_cam_url || 'http://localhost:3001/mobile-cam'}
+              Open Web Cam
             </a>
           </div>
         </div>
