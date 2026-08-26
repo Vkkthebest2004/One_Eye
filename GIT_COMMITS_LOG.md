@@ -6,6 +6,11 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ## Milestone Log
 
+- **Commit `44cbc34`**: `perf(cv): unlock 30 FPS inference by removing global serial lock and optimizing frame interval`
+  - Unlocked 25–30+ FPS real-time surveillance by eliminating the global inference lock across camera channels.
+  - Enabled concurrent asynchronous thread execution for YOLOv8s and Qwen2-VL inference.
+  - Increased `INFERENCE_FPS = 30` and pipeline target frame interval to 33ms.
+
 - **Commit `1da1b30`**: `fix(zones): resolve danger zone false breaches with strict foot ground-anchor intersection and mobile dynamic deactivation`
   - Fixed root cause of false danger zone breaches: replaced full bounding-box intersection with strict ground-contact foot anchor point-in-polygon verification.
   - Eliminated phantom static screen overlays on mobile feeds: all mobile zones are strictly dynamic and only activate when RANSAC homography matches the physical keyframe (`is_visible == True`).
