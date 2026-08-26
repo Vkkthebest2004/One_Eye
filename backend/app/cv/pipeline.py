@@ -215,7 +215,14 @@ class CameraPipeline:
         )
 
         # 3.5. Visual Danger Memory & Dynamic Homography Tracking
+        is_mobile_feed = self.camera_id.startswith("CAM_MOB") or self.camera_id == "CAM_MOBILE"
         tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
+        
+        # On mobile phone feeds, strictly deactivate all zones by default
+        if is_mobile_feed:
+            for zone_def in self.zone_engine.zones.values():
+                zone_def.active = False
+
         for tvz in tracked_visual_zones:
             if tvz.is_visible and len(tvz.polygon_norm) >= 3:
                 # The physical object is recognized in current camera frame -> Lock zone to object

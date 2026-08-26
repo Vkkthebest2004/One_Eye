@@ -55,29 +55,21 @@ class ZoneDefinition:
         if not self.active or self._shapely_polygon is None:
             return False
         
-        # Test foot contact point
+        # 1. Primary Precision: Test worker foot ground contact anchor
         if self.contains_point(foot_x, foot_y, frame_w, frame_h):
             return True
 
-        # Test body center point
-        if self.contains_point(center_x, center_y, frame_w, frame_h):
-            return True
-
-        # Test lower torso (75% height)
+        # 2. Test worker base center ground contact (90% height)
         x1, y1, x2, y2 = bbox
-        if self.contains_point((x1 + x2) / 2.0, y1 + (y2 - y1) * 0.75, frame_w, frame_h):
+        base_x = (x1 + x2) / 2.0
+        base_y = y1 + (y2 - y1) * 0.90
+        if self.contains_point(base_x, base_y, frame_w, frame_h):
             return True
 
-        # Test normalized bbox polygon overlap
-        if frame_w > 0 and frame_h > 0:
-            from shapely.geometry import box
-            nx1 = min(1.0, max(0.0, x1 / frame_w if x1 > 1.0 else x1))
-            ny1 = min(1.0, max(0.0, y1 / frame_h if y1 > 1.0 else y1))
-            nx2 = min(1.0, max(0.0, x2 / frame_w if x2 > 1.0 else x2))
-            ny2 = min(1.0, max(0.0, y2 / frame_h if y2 > 1.0 else y2))
-            p_box = box(nx1, ny1, nx2, ny2)
-            if self._shapely_polygon.intersects(p_box):
-                return True
+        # 3. Test lower torso (80% height)
+        lower_y = y1 + (y2 - y1) * 0.80
+        if self.contains_point(base_x, lower_y, frame_w, frame_h):
+            return True
 
         return False
 
