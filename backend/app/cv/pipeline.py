@@ -211,14 +211,34 @@ class CameraPipeline:
             now=timestamp,
         )
 
+        # 3.4. Dynamic Object-Centric Danger Zones (Qwen2-VL & Open-Vocabulary Grounding)
+        for d in detections:
+            if d.category in ("MACHINE", "DANGER_ZONE", "HAZARD_OBJECT") and d.confidence >= 0.40:
+                nx1 = max(0.0, (d.x1 - 10) / w)
+                ny1 = max(0.0, (d.y1 - 10) / h)
+                nx2 = min(1.0, (d.x2 + 10) / w)
+                ny2 = min(1.0, (d.y2 + 10) / h)
+                obj_zone_id = f"OBJ_{d.category}_{d.class_name.upper()[:8]}"
+                self.zone_engine.register_zone(
+                    ZoneDefinition(
+                        id=obj_zone_id,
+                        name=f"Hazard Perimeter: {d.class_name.title()}",
+                        camera_id=self.camera_id,
+                        polygon_points=[[nx1, ny1], [nx2, ny1], [nx2, ny2], [nx1, ny2]],
+                        severity=95 if d.category == "MACHINE" else 85,
+                        active=True
+                    )
+                )
+
         # 3.5. Visual Danger Memory & Dynamic Homography Tracking
         is_mobile_feed = self.camera_id.startswith("CAM_MOB") or self.camera_id == "CAM_MOBILE"
         tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
         
-        # On mobile phone feeds, strictly deactivate all zones by default
+        # On mobile phone feeds, strictly deactivate static zones by default unless homography confirmed
         if is_mobile_feed:
-            for zone_def in self.zone_engine.zones.values():
-                zone_def.active = False
+            for zid, zone_def in self.zone_engine.zones.items():
+                if not zid.startswith("OBJ_"):
+                    zone_def.active = False
 
         for tvz in tracked_visual_zones:
             if tvz.is_visible and len(tvz.polygon_norm) >= 3:

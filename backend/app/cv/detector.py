@@ -376,10 +376,16 @@ class QwenVLDetector(BaseDetector):
                 b64_img = base64.b64encode(buffer).decode('utf-8')
 
                 prompt = (
-                    "Locate all people/workers, safety hardhats, vests, machinery, and dangerous situations. "
-                    "Return ONLY a JSON array of objects with format: "
-                    '[{"box_2d": [ymin, xmin, ymax, xmax], "label": "person", "category": "PERSON", "confidence": 0.95, "has_helmet": false, "has_vest": true}]. '
-                    "Normalized coordinates 0-1000. Do not include markdown codeblocks or extra text."
+                    "Detect ALL objects, persons, industrial machinery, vehicles, and danger zones in this surveillance image. "
+                    "Recognize categories: "
+                    "1) 'PERSON' (worker/human, include 'has_helmet': bool, 'has_vest': bool), "
+                    "2) 'MACHINE' (industrial robot, press, crane, lathe, conveyor, heavy equipment), "
+                    "3) 'VEHICLE' (forklift, truck, cart, AGV), "
+                    "4) 'HAZARD_OBJECT' (fire, smoke, spill, high voltage panel, exposed tool, phone), "
+                    "5) 'DANGER_ZONE' (restricted perimeter, no-entry zone). "
+                    "Return ONLY a valid JSON array of objects with format: "
+                    '[{"box_2d": [ymin, xmin, ymax, xmax], "label": "forklift", "category": "VEHICLE", "confidence": 0.95, "has_helmet": null, "has_vest": null}]. '
+                    "Normalized coordinates 0-1000. Do not include markdown codeblocks or explanatory text."
                 )
 
                 with httpx.Client(timeout=4.0) as client:
@@ -400,7 +406,7 @@ class QwenVLDetector(BaseDetector):
                                     ]
                                 }
                             ],
-                            "max_tokens": 300
+                            "max_tokens": 400
                         }
                     )
                     if resp.status_code == 200:
@@ -417,11 +423,14 @@ class QwenVLDetector(BaseDetector):
                                 ymin, xmin, ymax, xmax = [float(v) / 1000.0 for v in box]
                                 x1, y1 = xmin * w, ymin * h
                                 x2, y2 = xmax * w, ymax * h
-                                label = item.get("label", "person")
-                                cat = item.get("category", "PERSON")
+                                label = str(item.get("label", "object")).lower()
+                                cat = str(item.get("category", "OBJECT")).upper()
+                                if cat not in ("PERSON", "MACHINE", "VEHICLE", "HAZARD_OBJECT", "DANGER_ZONE"):
+                                    cat = "PERSON" if "person" in label or "worker" in label else "MACHINE" if "machine" in label or "robot" in label else "HAZARD_OBJECT"
+                                
                                 conf = float(item.get("confidence", 0.92))
                                 detections.append(Detection(
-                                    class_id=0 if cat == "PERSON" else 1,
+                                    class_id=0 if cat == "PERSON" else (1 if cat == "MACHINE" else (2 if cat == "VEHICLE" else 3)),
                                     class_name=label,
                                     category=cat,
                                     confidence=conf,
@@ -442,7 +451,7 @@ class QwenVLDetector(BaseDetector):
 
         # 2. High-Precision Cognitive Fallback Engine
         # Leverages YOLOv8 for precise spatial localization with Qwen-style enriched contextual metadata
-        yolo_det = Detector(confidence_threshold=0.35)
+        yolo_det = Detector(confidence_threshold=0.30)
         raw_dets = yolo_det.predict(frame)
         for d in raw_dets:
             if d.category == "PERSON":
