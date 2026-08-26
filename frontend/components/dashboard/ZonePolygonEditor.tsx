@@ -33,26 +33,9 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
 
   // Capture current live frame into a frozen photo snapshot
   const handleCaptureSnapshot = () => {
-    if (!containerRef.current) return;
-    try {
-      const canvas = document.createElement('canvas');
-      const rect = containerRef.current.getBoundingClientRect();
-      canvas.width = rect.width || 640;
-      canvas.height = rect.height || 360;
-      const ctx = canvas.getContext('2d');
-      if (ctx && imgRef.current) {
-        ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        setFrozenSnapshot(dataUrl);
-        setStatusMsg('📸 Live frame frozen. Click on the photo to mark the forbidden area.');
-        return;
-      }
-    } catch (e) {
-      // Fallback
-    }
-    // Fallback URL timestamp
-    setFrozenSnapshot(getMediaUrl(`/api/cameras/${selectedCamId}/stream?freeze=${Date.now()}`));
-    setStatusMsg('📸 Live frame frozen. Click on the photo to mark the forbidden area.');
+    const snapshotUrl = getMediaUrl(`/api/cameras/${selectedCamId}/snapshot?t=${Date.now()}`);
+    setFrozenSnapshot(snapshotUrl);
+    setStatusMsg('📸 Live frame captured & frozen. Click on the photo to mark the forbidden area.');
   };
 
   const handleResumeLive = () => {

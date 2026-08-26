@@ -144,3 +144,26 @@ async def get_camera_stream(camera_id: str, fps: int = 30):
         frame_generator(),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@router.get("/{camera_id}/snapshot")
+async def get_camera_snapshot(camera_id: str):
+    """Return a crisp, real-time JPEG still frame snapshot from the active camera pipeline."""
+    pipe = pipeline_manager.get_pipeline(camera_id)
+    frame = pipe.latest_frame if pipe else None
+
+    if frame is None and (camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE"):
+        from app.cv.usb_mobile import mobile_manager
+        web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+        if web_res:
+            frame = web_res[0]
+
+    if frame is None:
+        raise HTTPException(status_code=404, detail="No active video frame available for snapshot")
+
+    ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to encode snapshot image")
+
+    from fastapi import Response
+    return Response(content=jpeg.tobytes(), media_type="image/jpeg")

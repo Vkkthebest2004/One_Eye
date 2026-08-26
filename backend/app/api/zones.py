@@ -25,6 +25,14 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Zone with this ID already exists")
 
+    policy = {
+        "zone_type": payload.zone_type,
+        "warning_delay_seconds": payload.warning_delay_seconds,
+        "critical_delay_seconds": payload.critical_delay_seconds,
+        "voice_alert_enabled": payload.voice_alert_enabled,
+        "siren_enabled": payload.siren_enabled,
+        "supervisor_alert_enabled": payload.supervisor_alert_enabled,
+    }
     zone = Zone(
         id=payload.id,
         camera_id=payload.camera_id,
@@ -32,6 +40,7 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
         polygon=payload.polygon,
         severity=payload.severity,
         allowed_classes=payload.allowed_classes,
+        policy=policy,
         active=payload.active
     )
     created = await repo.create(zone)
