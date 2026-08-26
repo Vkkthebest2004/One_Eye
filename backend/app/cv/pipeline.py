@@ -62,6 +62,9 @@ class CameraPipeline:
 
         # Core CV Subsystems
         self.source = CameraSource(camera_id=camera_id, source=source_uri, loop=True)
+        self.yolo_detector = detector
+        from app.cv.detector import QwenVLDetector
+        self.qwen_detector = QwenVLDetector()
         self.tracker = MultiObjectTracker()
         self.ppe_engine = PPEEngine(persistence_threshold_sec=1.0)
         self.zone_engine = ZoneEngine()
@@ -161,11 +164,13 @@ class CameraPipeline:
         t0 = time.time()
         h, w = frame.shape[:2]
 
-        # 1. Primary Perception
+        # 1. Primary Perception (Dynamic Switcher: YOLOv8 vs Qwen2-VL)
+        mode = pipeline_manager.perception_mode
+        active_detector = self.qwen_detector if mode == "QWEN_VL" else self.yolo_detector
         if self._inference_lock is None:
             self._inference_lock = pipeline_manager.inference_lock
         async with self._inference_lock:
-            detections = await asyncio.to_thread(self.detector.predict, frame)
+            detections = await asyncio.to_thread(active_detector.predict, frame)
 
         # Separate detected PPE items for spatial association
         detected_ppe_items: List[PPEItem] = []
@@ -412,11 +417,20 @@ class PipelineManager:
     def __init__(self):
         self.pipelines: Dict[str, CameraPipeline] = {}
         self.ai_enabled: bool = True
+        self.perception_mode: str = "YOLO" # "YOLO" | "QWEN_VL" | "HYBRID"
         self.inference_lock: asyncio.Lock = asyncio.Lock()
 
     def set_ai_enabled(self, enabled: bool):
         self.ai_enabled = enabled
         logger.info(f"System AI Hazard Scanning mode set to: {'ENABLED' if enabled else 'DISABLED (Camera-Only)'}")
+
+    def set_perception_mode(self, mode: str) -> str:
+        valid_modes = {"YOLO", "QWEN_VL", "HYBRID"}
+        mode_upper = mode.upper()
+        if mode_upper in valid_modes:
+            self.perception_mode = mode_upper
+            logger.info(f"Switched system perception engine mode to: {self.perception_mode}")
+        return self.perception_mode
 
     def register(self, pipeline: CameraPipeline):
         self.pipelines[pipeline.camera_id] = pipeline

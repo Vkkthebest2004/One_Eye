@@ -49,15 +49,28 @@ class Track:
             0.7 * self.velocity[1] + 0.3 * vy
         )
 
-        self.bbox = detection.bbox
-        self.foot_anchor = new_foot
-        self.center = new_center
+        # Exponential Moving Average (EMA) Coordinate Smoothing to Eliminate Jitter
+        alpha = 0.75
+        self.bbox = (
+            alpha * detection.x1 + (1.0 - alpha) * self.bbox[0],
+            alpha * detection.y1 + (1.0 - alpha) * self.bbox[1],
+            alpha * detection.x2 + (1.0 - alpha) * self.bbox[2],
+            alpha * detection.y2 + (1.0 - alpha) * self.bbox[3],
+        )
+        self.foot_anchor = (
+            alpha * new_foot[0] + (1.0 - alpha) * self.foot_anchor[0],
+            alpha * new_foot[1] + (1.0 - alpha) * self.foot_anchor[1],
+        )
+        self.center = (
+            alpha * new_center[0] + (1.0 - alpha) * self.center[0],
+            alpha * new_center[1] + (1.0 - alpha) * self.center[1],
+        )
         self.confidence = detection.confidence
         self.last_seen = timestamp
         self.lost_frames = 0
         self.state = "ACTIVE"
         
-        self.trajectory.append(new_foot)
+        self.trajectory.append(self.foot_anchor)
         if len(self.trajectory) > 60: # Maintain last 60 points (~2-4 seconds)
             self.trajectory.pop(0)
 
@@ -130,15 +143,11 @@ class MultiObjectTracker:
         return math.hypot(ptA[0] - ptB[0], ptA[1] - ptB[1])
 
     def update(self, detections: List[Detection], timestamp: float) -> List[Track]:
-        # Filter for trackable entities: Persons and Mobile Machines/Vehicles
+        # Filter strictly for trackable entities: Persons and Mobile Machines/Vehicles
         trackable_detections = [
             d for d in detections
-            if d.category in ("PERSON", "MACHINE", "VEHICLE") or d.class_name in ("person", "worker", "forklift", "vehicle")
+            if d.category in ("PERSON", "MACHINE", "VEHICLE") or d.class_name.lower() in ("person", "worker", "forklift", "vehicle")
         ]
-        
-        # Fallback for unclassified confidence detections
-        if not trackable_detections and detections:
-            trackable_detections = [d for d in detections if d.confidence >= 0.25]
 
         active_track_ids = [tid for tid, trk in self.tracks.items() if trk.state != "REMOVED"]
         matched_tracks = set()
@@ -153,8 +162,10 @@ class MultiObjectTracker:
                     if tid in matched_tracks:
                         continue
                     trk = self.tracks[tid]
-                    # Enforce category match when available
-                    if trk.category != det.category and trk.category != "PERSON":
+                    # Strict Category Isolation: Person tracks NEVER match non-person objects
+                    if trk.category == "PERSON" and det.category != "PERSON":
+                        continue
+                    if trk.category != "PERSON" and det.category == "PERSON":
                         continue
 
                     iou = self._compute_iou(det.bbox, trk.bbox)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SystemHealth } from '@/types';
-import { getSystemMode, toggleSystemAi, getDemoMode, toggleDemoMode } from '@/lib/api';
+import { getSystemMode, toggleSystemAi, getDemoMode, toggleDemoMode, getPerceptionMode, setPerceptionMode } from '@/lib/api';
 
 interface TopNavBarProps {
   health: SystemHealth | null;
@@ -21,12 +21,18 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   const [searchVal, setSearchVal] = useState('');
   const [aiEnabled, setAiEnabled] = useState<boolean>(true);
   const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [perceptionMode, setPerceptionState] = useState<'YOLO' | 'QWEN_VL' | 'HYBRID'>('YOLO');
   const [isTogglingAi, setIsTogglingAi] = useState<boolean>(false);
   const [isTogglingDemo, setIsTogglingDemo] = useState<boolean>(false);
+  const [isChangingMode, setIsChangingMode] = useState<boolean>(false);
 
   useEffect(() => {
     getSystemMode()
       .then((res) => setAiEnabled(res.ai_enabled))
+      .catch(() => null);
+
+    getPerceptionMode()
+      .then((res) => setPerceptionState(res.perception_mode as any))
       .catch(() => null);
 
     getDemoMode()
@@ -46,6 +52,24 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
       console.warn('Failed to toggle AI system mode', e);
     } finally {
       setIsTogglingAi(false);
+    }
+  };
+
+  const handleCyclePerceptionMode = async () => {
+    const cycleMap: Record<string, 'YOLO' | 'QWEN_VL' | 'HYBRID'> = {
+      YOLO: 'QWEN_VL',
+      QWEN_VL: 'HYBRID',
+      HYBRID: 'YOLO',
+    };
+    const nextMode = cycleMap[perceptionMode] || 'YOLO';
+    setIsChangingMode(true);
+    try {
+      const res = await setPerceptionMode(nextMode);
+      setPerceptionState(res.perception_mode as any);
+    } catch (e) {
+      console.warn('Failed to change perception mode', e);
+    } finally {
+      setIsChangingMode(false);
     }
   };
 
@@ -127,6 +151,31 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             className="bg-surface-container-low border border-outline-variant rounded-full py-1 pl-9 pr-4 font-body-sm text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 xl:w-60 transition-all"
           />
         </div>
+
+        {/* Perception Engine Switcher: YOLO vs Qwen-VL vs Hybrid */}
+        <button
+          onClick={handleCyclePerceptionMode}
+          disabled={isChangingMode}
+          className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-label-mono font-bold border transition-all shadow-sm shrink-0 whitespace-nowrap active:scale-95 ${
+            perceptionMode === 'QWEN_VL'
+              ? 'bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30 ring-1 ring-purple-500/30'
+              : perceptionMode === 'HYBRID'
+              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 hover:bg-cyan-500/30 ring-1 ring-cyan-500/30'
+              : 'bg-blue-500/15 text-blue-400 border-blue-500/40 hover:bg-blue-500/25'
+          }`}
+          title="Click to Switch Perception Engine (YOLOv8 ↔ Qwen2-VL ↔ Hybrid Dual-AI)"
+        >
+          <span className={`w-2 h-2 rounded-full shrink-0 ${
+            perceptionMode === 'QWEN_VL' ? 'bg-purple-400 animate-pulse' :
+            perceptionMode === 'HYBRID' ? 'bg-cyan-400 animate-pulse' : 'bg-blue-400'
+          }`} />
+          <span className="material-symbols-outlined text-sm shrink-0">
+            {perceptionMode === 'QWEN_VL' ? 'psychology' : perceptionMode === 'HYBRID' ? 'hub' : 'bolt'}
+          </span>
+          <span className="text-[11px] hidden sm:inline">
+            {perceptionMode === 'QWEN_VL' ? 'ENGINE: QWEN2-VL' : perceptionMode === 'HYBRID' ? 'ENGINE: HYBRID DUAL-AI' : 'ENGINE: YOLOV8'}
+          </span>
+        </button>
 
         {/* Master AI Hazard Scanning / Camera-Only Toggle Button */}
         <button

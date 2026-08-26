@@ -192,6 +192,46 @@ async def toggle_system_ai(payload: ToggleAIRequest = ToggleAIRequest()):
 
 
 # ---------------------------------------------------------------------------
+# Global System Control: Perception Model Engine (YOLO vs Qwen2-VL vs Hybrid)
+# ---------------------------------------------------------------------------
+class PerceptionModeRequest(BaseModel):
+    mode: str = "YOLO"
+
+
+@app.get("/api/system/perception-mode")
+async def get_perception_mode():
+    """Return the active perception engine mode (YOLO, QWEN_VL, or HYBRID)."""
+    mode = pipeline_manager.perception_mode
+    label = (
+        "⚡ YOLOv8 (Ultra-Fast)" if mode == "YOLO"
+        else ("🧠 Qwen2-VL (Cognitive)" if mode == "QWEN_VL"
+        else "🔄 Hybrid Dual-AI")
+    )
+    return {
+        "perception_mode": mode,
+        "mode_label": label,
+        "available_modes": ["YOLO", "QWEN_VL", "HYBRID"],
+    }
+
+
+@app.post("/api/system/perception-mode")
+async def set_perception_mode(payload: PerceptionModeRequest):
+    """Switch active perception engine between YOLO, Qwen2-VL, and Hybrid."""
+    new_mode = pipeline_manager.set_perception_mode(payload.mode)
+    await ws_manager.broadcast({
+        "type": "PERCEPTION_MODE_CHANGED",
+        "data": {
+            "perception_mode": new_mode,
+        }
+    })
+    return {
+        "success": True,
+        "perception_mode": new_mode,
+        "message": f"Active AI perception engine switched to: {new_mode}",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Global System Control: Live Production Mode vs Demo Simulation Mode
 # ---------------------------------------------------------------------------
 @app.get("/api/system/demo-mode")
