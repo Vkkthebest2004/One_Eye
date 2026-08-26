@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Camera, LiveTrack, LiveDetection, Zone, Machine } from '@/types';
 import { getMediaUrl } from '@/lib/api';
+import { ZonePolygonEditor } from './ZonePolygonEditor';
 
 interface MonitoringArrayProps {
   cameras: Camera[];
@@ -10,6 +11,7 @@ interface MonitoringArrayProps {
   cameraDetections: Record<string, LiveDetection[]>;
   cameraFps: Record<string, number>;
   onSelectCamera?: (cam: Camera) => void;
+  onZonesUpdated?: () => void;
 }
 
 export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
@@ -20,8 +22,10 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
   cameraDetections,
   cameraFps,
   onSelectCamera,
+  onZonesUpdated,
 }) => {
   const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+  const [isZoneEditorOpen, setIsZoneEditorOpen] = useState(false);
 
   // Render synchronized high-fidelity Computer Vision overlays on each camera feed
   useEffect(() => {
@@ -271,6 +275,16 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* Mark Forbidden Zone Button */}
+          <button
+            onClick={() => setIsZoneEditorOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs font-label-mono font-bold shadow-md transition-all active:scale-95 border border-red-400/30"
+            title="Freeze a photo and mark any forbidden danger zone for instant alerts"
+          >
+            <span className="material-symbols-outlined text-sm">security</span>
+            🛡️ MARK FORBIDDEN ZONE
+          </button>
+
           <button
             onClick={toggleAllStreams}
             className={`flex items-center gap-1 px-2.5 py-1 rounded text-xs font-label-mono font-bold shadow-sm transition-all border ${
@@ -318,6 +332,34 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal: Mark Forbidden Area Editor */}
+      {isZoneEditorOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-surface border border-outline-variant rounded-xl w-full max-w-5xl shadow-2xl p-5 relative my-8">
+            <div className="flex justify-between items-center pb-3 mb-4 border-b border-outline-variant">
+              <h3 className="font-label-mono-bold text-sm text-on-surface font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-500">security</span>
+                MARK FORBIDDEN SAFETY AREA // INSTANT AI BREACH ALERTS
+              </h3>
+              <button
+                onClick={() => setIsZoneEditorOpen(false)}
+                className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition font-bold"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            </div>
+
+            <ZonePolygonEditor
+              cameras={cameras}
+              zones={zones}
+              onZonesUpdated={() => {
+                if (onZonesUpdated) onZonesUpdated();
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       {filteredCameras.length === 0 ? (

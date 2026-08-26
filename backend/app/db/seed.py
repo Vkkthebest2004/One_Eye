@@ -120,28 +120,16 @@ async def seed_initial_data():
                 severity=85,
                 active=True,
             ),
-            Zone(
-                id="ZONE_MOB_RESTRICTED",
-                camera_id="CAM_MOBILE",
-                name="Mobile Safety Danger Perimeter",
-                polygon=[[0.15, 0.3], [0.85, 0.3], [0.85, 0.9], [0.15, 0.9]],
-                severity=90,
-                active=True,
-            ),
-            Zone(
-                id="ZONE_MOB_PIXEL",
-                camera_id="CAM_MOB_24151JEG",
-                name="Pixel 6a Danger Perimeter",
-                polygon=[[0.15, 0.3], [0.85, 0.3], [0.85, 0.9], [0.15, 0.9]],
-                severity=90,
-                active=True,
-            ),
         ]
 
         for z in default_zones:
             if z.id not in existing_zones:
                 db.add(z)
                 logger.info(f"Seeded zone: {z.id} ({z.name})")
+
+        # Ensure legacy mobile demo perimeters are removed
+        from sqlalchemy import delete
+        await db.execute(delete(Zone).where(Zone.id.in_(["ZONE_MOB_RESTRICTED", "ZONE_MOB_PIXEL"])))
 
         await db.commit()
         logger.info("Database seeding complete.")

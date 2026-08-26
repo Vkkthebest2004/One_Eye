@@ -188,6 +188,7 @@ export default function DashboardPage() {
                   cameraTracks={cameraTracks}
                   cameraDetections={cameraDetections}
                   cameraFps={cameraFps}
+                  onZonesUpdated={loadData}
                 />
               </div>
 

@@ -37,17 +37,22 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
     created = await repo.create(zone)
 
     # Sync with runtime CV pipeline
-    pipeline = pipeline_manager.get_pipeline(payload.camera_id)
-    if pipeline:
-        pipeline.zone_engine.register_zone(ZoneDefinition(
-            id=created.id,
-            name=created.name,
-            camera_id=created.camera_id,
-            polygon_points=[(p[0], p[1]) for p in created.polygon],
-            severity=created.severity,
-            allowed_classes=created.allowed_classes,
-            active=created.active
-        ))
+    target_cams = [payload.camera_id]
+    if payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE":
+        target_cams.extend(["CAM_MOBILE", "CAM_MOB_24151JEG"])
+
+    for cid in set(target_cams):
+        pipeline = pipeline_manager.get_pipeline(cid)
+        if pipeline:
+            pipeline.zone_engine.register_zone(ZoneDefinition(
+                id=created.id,
+                name=created.name,
+                camera_id=cid,
+                polygon_points=[(p[0], p[1]) for p in created.polygon],
+                severity=created.severity,
+                allowed_classes=created.allowed_classes,
+                active=created.active
+            ))
 
     return created
 
@@ -55,7 +60,17 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
 @router.delete("/{zone_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_zone(zone_id: str, db: AsyncSession = Depends(get_db)):
     repo = ZoneRepository(db)
-    deleted = await repo.delete(zone_id)
-    if not deleted:
+    zone = await repo.get_by_id(zone_id)
+    if not zone:
         raise HTTPException(status_code=404, detail="Zone not found")
+    await repo.delete(zone_id)
+
+    target_cams = [zone.camera_id]
+    if zone.camera_id.startswith("CAM_MOB") or zone.camera_id == "CAM_MOBILE":
+        target_cams.extend(["CAM_MOBILE", "CAM_MOB_24151JEG"])
+
+    for cid in set(target_cams):
+        pipeline = pipeline_manager.get_pipeline(cid)
+        if pipeline:
+            pipeline.zone_engine.unregister_zone(zone_id)
     return None

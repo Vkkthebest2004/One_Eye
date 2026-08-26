@@ -30,10 +30,16 @@ class ZoneDefinition:
         else:
             self._shapely_polygon = None
 
-    def contains_point(self, x: float, y: float) -> bool:
+    def contains_point(self, x: float, y: float, frame_w: float = 1280.0, frame_h: float = 720.0) -> bool:
         if not self.active or self._shapely_polygon is None:
             return False
-        point = Point(x, y)
+        
+        px, py = x, y
+        if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
+            px = min(1.0, max(0.0, px / frame_w))
+            py = min(1.0, max(0.0, py / frame_h))
+
+        point = Point(px, py)
         return self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point)
 
 
@@ -82,13 +88,15 @@ class ZoneEngine:
         foot_x: float,
         foot_y: float,
         timestamp: float,
-        camera_id: str
+        camera_id: str,
+        frame_w: float = 1280.0,
+        frame_h: float = 720.0
     ) -> List[ZoneEvent]:
         events: List[ZoneEvent] = []
         relevant_zones = [z for z in self.zones.values() if z.camera_id == camera_id and z.active]
 
         for zone in relevant_zones:
-            is_inside = zone.contains_point(foot_x, foot_y)
+            is_inside = zone.contains_point(foot_x, foot_y, frame_w, frame_h)
             state_key = (worker_id, zone.id)
             prev_state_info = self.worker_zone_states.get(state_key)
 

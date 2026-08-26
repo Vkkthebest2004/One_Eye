@@ -245,7 +245,9 @@ class CameraPipeline:
                 foot_x=foot_x,
                 foot_y=foot_y,
                 timestamp=timestamp,
-                camera_id=self.camera_id
+                camera_id=self.camera_id,
+                frame_w=w,
+                frame_h=h
             )
             for ze in zone_events:
                 if ze.state in ("ENTERED", "INSIDE"):
