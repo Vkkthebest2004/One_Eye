@@ -83,6 +83,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Note on camera startup: {e}")
 
+    try:
+        from app.cv.usb_mobile import mobile_manager as mm
+        mm.scan()
+    except Exception as e:
+        logger.warning(f"Initial mobile scan: {e}")
+
     logger.info("ONE EYE Backend is ONLINE and ready.")
     yield
     # Shutdown

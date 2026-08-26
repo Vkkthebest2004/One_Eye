@@ -77,7 +77,7 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
       try {
         const [st, devs, host] = await Promise.all([
           getMobileStatus(),
-          getMobileDevices(),
+          scanMobileDevices(),
           getHostInfo(),
         ]);
         setStatus(st);
