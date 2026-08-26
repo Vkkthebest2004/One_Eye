@@ -2,8 +2,24 @@ import json
 import logging
 from typing import List, Dict, Any, Set
 from fastapi import WebSocket
+import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+class NumpySafeJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, (np.integer, np.int64, np.int32, np.int16, np.int8)):
+            return int(obj)
+        if isinstance(obj, (np.floating, np.float64, np.float32, np.float16)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if hasattr(obj, "to_dict"):
+            return obj.to_dict()
+        return super().default(obj)
 
 
 class ConnectionManager:
@@ -28,7 +44,10 @@ class ConnectionManager:
             return
 
         dead_connections = []
-        msg_text = json.dumps(message)
+        try:
+            msg_text = json.dumps(message, cls=NumpySafeJSONEncoder)
+        except Exception:
+            msg_text = json.dumps(message, default=str)
         
         for connection in list(self.active_connections):
             try:
