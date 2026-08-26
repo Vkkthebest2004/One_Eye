@@ -19,29 +19,67 @@ export default function MobileCamPage() {
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(Date.now());
 
-  // Start Camera Stream
+  // Start Camera Stream (Strict Back/Front Selection with Multi-Tier Fallback)
   const startCamera = async (mode: 'environment' | 'user') => {
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
 
       let stream: MediaStream | null = null;
+
+      // 1. Try exact facingMode first (Forces Chrome to open exact rear/front sensor)
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: { ideal: mode },
+            facingMode: { exact: mode },
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
           audio: false,
         });
-      } catch (e) {
-        // Fallback to simple unconstrained video
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
+      } catch (e1) {
+        // 2. Try direct facingMode string
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: mode,
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+        } catch (e2) {
+          // 3. Try device enumeration to find back/front lens
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+            let targetDevice = videoInputs.find((d) => {
+              const label = d.label.toLowerCase();
+              return mode === 'environment'
+                ? label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('0')
+                : label.includes('front') || label.includes('user') || label.includes('selfie') || label.includes('1');
+            });
+            if (!targetDevice && videoInputs.length > 0) {
+              targetDevice = mode === 'environment' ? videoInputs[0] : videoInputs[videoInputs.length - 1];
+            }
+            if (targetDevice && targetDevice.deviceId) {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: targetDevice.deviceId } },
+                audio: false,
+              });
+            } else {
+              throw new Error('No target camera device found');
+            }
+          } catch (e3) {
+            // 4. Final fallback
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false,
+            });
+          }
+        }
       }
 
       streamRef.current = stream;
@@ -59,7 +97,9 @@ export default function MobileCamPage() {
       const capabilities: any = track.getCapabilities ? track.getCapabilities() : {};
       setHasTorch(!!capabilities.torch);
 
-      setStatusMsg('Camera connected. Streaming to ONE EYE AI pipeline...');
+      setStatusMsg(
+        `Active: ${mode === 'environment' ? '📷 Back Camera (Rear)' : '🤳 Front Camera (Selfie)'} — Streaming to ONE EYE`
+      );
       setIsStreaming(true);
       connectWebSocket();
     } catch (err: any) {
