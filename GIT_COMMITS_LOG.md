@@ -8,6 +8,7 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`6da95d7`** | `mobile` | Preserve USB ADB device registrations & add Direct USB Stream action button |
 | **`83680c2`** | `visual-anchor` | True dynamic homography lock on physical object, out-of-view zone culling, & direct snapshot binding |
 | **`2e62991`** | `safety-engine` | Multi-point zone intersection, resilient visual tracking fallback, eliminate false alarms, live mobile HUD |
 | **`fd9560d`** | `docs` | Update commit log with visual memory milestone |
