@@ -212,20 +212,18 @@ class CameraPipeline:
         # 3.5. Visual Danger Memory & Dynamic Homography Tracking
         tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
         for tvz in tracked_visual_zones:
-            if tvz.is_visible and len(tvz.polygon_norm) >= 3:
+            active_poly = tvz.polygon_norm if (tvz.is_visible and len(tvz.polygon_norm) >= 3) else tvz.reference_polygon_norm
+            if len(active_poly) >= 3:
                 self.zone_engine.register_zone(
                     ZoneDefinition(
                         id=tvz.zone_id,
                         name=tvz.name,
                         camera_id=self.camera_id,
-                        polygon_points=tvz.polygon_norm,
+                        polygon_points=active_poly,
                         severity=tvz.severity,
                         active=True,
                     )
                 )
-            else:
-                if tvz.zone_id in self.zone_engine.zones:
-                    self.zone_engine.zones[tvz.zone_id].active = False
 
         # 4. Worker-Level Spatial, Temporal, and Risk Analysis
         for track in active_tracks:
@@ -258,7 +256,7 @@ class CameraPipeline:
             if ppe_status.is_violation and not ppe_status.has_vest:
                 worker_hazards.append("NO_VEST")
 
-            # B. Restricted Zone Geofencing (Point-in-Polygon)
+            # B. Restricted Zone Geofencing (Point-in-Polygon & Spatial Intersection)
             zone_events = self.zone_engine.evaluate_worker(
                 worker_id=worker_id,
                 foot_x=foot_x,
@@ -266,7 +264,10 @@ class CameraPipeline:
                 timestamp=timestamp,
                 camera_id=self.camera_id,
                 frame_w=w,
-                frame_h=h
+                frame_h=h,
+                bbox=bbox,
+                center_x=track.center[0],
+                center_y=track.center[1]
             )
             for ze in zone_events:
                 if ze.state in ("ENTERED", "INSIDE"):

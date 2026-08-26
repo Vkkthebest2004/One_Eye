@@ -217,7 +217,18 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
           ctx.fillText(fallText, x + 4, badgeOffsetY + 10);
         }
 
-        // G. Ground Contact Foot-Anchor Reticle
+        // G. Forbidden Safety Zone Breach Tag
+        if (track.current_zone_id) {
+          badgeOffsetY += 14;
+          const zoneBreachText = '🚨 IN FORBIDDEN DANGER ZONE';
+          const zoneW = ctx.measureText(zoneBreachText).width + 8;
+          ctx.fillStyle = '#b91c1c';
+          ctx.fillRect(x, badgeOffsetY, zoneW, 14);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(zoneBreachText, x + 4, badgeOffsetY + 10);
+        }
+
+        // H. Ground Contact Foot-Anchor Reticle
         const footX = x + w / 2;
         const footY = y + h;
         ctx.beginPath();

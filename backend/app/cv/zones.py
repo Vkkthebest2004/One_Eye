@@ -42,6 +42,45 @@ class ZoneDefinition:
         point = Point(px, py)
         return self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point)
 
+    def intersects_person(
+        self,
+        bbox: Tuple[float, float, float, float],
+        foot_x: float,
+        foot_y: float,
+        center_x: float,
+        center_y: float,
+        frame_w: float = 1280.0,
+        frame_h: float = 720.0
+    ) -> bool:
+        if not self.active or self._shapely_polygon is None:
+            return False
+        
+        # Test foot contact point
+        if self.contains_point(foot_x, foot_y, frame_w, frame_h):
+            return True
+
+        # Test body center point
+        if self.contains_point(center_x, center_y, frame_w, frame_h):
+            return True
+
+        # Test lower torso (75% height)
+        x1, y1, x2, y2 = bbox
+        if self.contains_point((x1 + x2) / 2.0, y1 + (y2 - y1) * 0.75, frame_w, frame_h):
+            return True
+
+        # Test normalized bbox polygon overlap
+        if frame_w > 0 and frame_h > 0:
+            from shapely.geometry import box
+            nx1 = min(1.0, max(0.0, x1 / frame_w if x1 > 1.0 else x1))
+            ny1 = min(1.0, max(0.0, y1 / frame_h if y1 > 1.0 else y1))
+            nx2 = min(1.0, max(0.0, x2 / frame_w if x2 > 1.0 else x2))
+            ny2 = min(1.0, max(0.0, y2 / frame_h if y2 > 1.0 else y2))
+            p_box = box(nx1, ny1, nx2, ny2)
+            if self._shapely_polygon.intersects(p_box):
+                return True
+
+        return False
+
 
 @dataclass
 class ZoneEvent:
@@ -90,13 +129,22 @@ class ZoneEngine:
         timestamp: float,
         camera_id: str,
         frame_w: float = 1280.0,
-        frame_h: float = 720.0
+        frame_h: float = 720.0,
+        bbox: Optional[Tuple[float, float, float, float]] = None,
+        center_x: Optional[float] = None,
+        center_y: Optional[float] = None,
     ) -> List[ZoneEvent]:
         events: List[ZoneEvent] = []
-        relevant_zones = [z for z in self.zones.values() if z.camera_id == camera_id and z.active]
+        relevant_zones = [
+            z for z in self.zones.values()
+            if (z.camera_id == camera_id or (camera_id.startswith("CAM_MOB") and z.camera_id.startswith("CAM_MOB"))) and z.active
+        ]
 
         for zone in relevant_zones:
-            is_inside = zone.contains_point(foot_x, foot_y, frame_w, frame_h)
+            if bbox is not None and center_x is not None and center_y is not None:
+                is_inside = zone.intersects_person(bbox, foot_x, foot_y, center_x, center_y, frame_w, frame_h)
+            else:
+                is_inside = zone.contains_point(foot_x, foot_y, frame_w, frame_h)
             state_key = (worker_id, zone.id)
             prev_state_info = self.worker_zone_states.get(state_key)
 

@@ -26,8 +26,9 @@ class TrackedVisualZone:
     name: str
     polygon_norm: List[List[float]] # Normalized [0, 1] points in live frame
     polygon_px: List[List[int]]     # Absolute pixel points in live frame
+    reference_polygon_norm: List[List[float]] # Fallback reference coordinates
     severity: int
-    is_visible: bool                # True if currently locked in camera view
+    is_visible: bool                # True if currently active
     match_confidence: float         # Inlier ratio / match quality (0.0 - 1.0)
     inlier_count: int
 
@@ -60,9 +61,9 @@ class VisualMemoryEngine:
         # In-memory anchor registry: zone_id -> VisualAnchor
         self.anchors: Dict[str, VisualAnchor] = {}
         
-        # Feature Extractor: 1200 ORB keypoints for fast edge inference (< 3ms)
+        # Robust ORB Feature Extractor (1500 keypoints)
         self.orb = cv2.ORB_create(
-            nfeatures=1200,
+            nfeatures=1500,
             scaleFactor=1.2,
             nlevels=8,
             edgeThreshold=15,
@@ -70,7 +71,7 @@ class VisualMemoryEngine:
             WTA_K=2,
             scoreType=cv2.ORB_FAST_SCORE,
             patchSize=31,
-            fastThreshold=20,
+            fastThreshold=15,
         )
         
         # Brute-Force Matcher with Hamming Distance
@@ -215,11 +216,11 @@ class VisualMemoryEngine:
             for m_tuple in matches:
                 if len(m_tuple) == 2:
                     m, n = m_tuple
-                    if m.distance < 0.75 * n.distance:
+                    if m.distance < 0.78 * n.distance:
                         good_matches.append(m)
 
             # Minimum inliers required to estimate a robust 3x3 homography matrix
-            MIN_INLIERS = 12
+            MIN_INLIERS = 8
             if len(good_matches) >= MIN_INLIERS:
                 src_pts = np.float32([anchor.keypoints[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
                 dst_pts = np.float32([kp_live[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -227,7 +228,7 @@ class VisualMemoryEngine:
                 H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
                 inliers = np.sum(mask) if mask is not None else 0
 
-                if H is not None and inliers >= 10:
+                if H is not None and inliers >= 6:
                     # Validate homography (check determinant and positive area)
                     det = np.linalg.det(H[:2, :2])
                     if det > 0.05 and det < 20.0:
@@ -256,6 +257,7 @@ class VisualMemoryEngine:
                             name=anchor.name,
                             polygon_norm=live_norm,
                             polygon_px=live_px,
+                            reference_polygon_norm=anchor.reference_polygon_norm,
                             severity=anchor.severity,
                             is_visible=True,
                             match_confidence=confidence,
@@ -265,15 +267,16 @@ class VisualMemoryEngine:
                         results.append(tracked)
                         continue
 
-            # If homography failed or not in view
+            # Resilient Fallback: Always return reference polygon with is_visible=True so zone stays active
             results.append(TrackedVisualZone(
                 zone_id=anchor.zone_id,
                 camera_id=camera_id,
                 name=anchor.name,
                 polygon_norm=anchor.reference_polygon_norm,
                 polygon_px=anchor.reference_polygon_px,
+                reference_polygon_norm=anchor.reference_polygon_norm,
                 severity=anchor.severity,
-                is_visible=False,
+                is_visible=True,
                 match_confidence=round(len(good_matches) / 50.0, 2),
                 inlier_count=len(good_matches)
             ))

@@ -27,7 +27,8 @@ class RiskThresholds:
 BASE_HAZARD_SEVERITY: Dict[str, int] = {
     "NO_HELMET": 35,
     "NO_VEST": 25,
-    "RESTRICTED_ZONE": 55,
+    "RESTRICTED_ZONE": 80,
+    "RESTRICTED_ZONE_CRITICAL": 90,
     "UNSAFE_PROXIMITY_WARNING": 30,
     "UNSAFE_PROXIMITY_DANGER": 60,
     "UNSAFE_PROXIMITY_CRITICAL": 85,
@@ -42,6 +43,7 @@ RECOMMENDED_ACTIONS: Dict[str, str] = {
     "NO_HELMET": "Instruct worker to equip required safety hardhat immediately.",
     "NO_VEST": "Instruct worker to put on high-visibility safety vest.",
     "RESTRICTED_ZONE": "Direct worker to evacuate restricted danger perimeter immediately.",
+    "RESTRICTED_ZONE_CRITICAL": "Emergency intervene: halt the hazardous operation and evacuate the no-entry zone.",
     "UNSAFE_PROXIMITY_CRITICAL": "Emergency intervene: Halt active machinery and move worker back.",
     "UNSAFE_PROXIMITY_DANGER": "Alert area supervisor to maintain 1.5m minimum safe clearance.",
     "UNSAFE_PROXIMITY_WARNING": "Advise worker to maintain caution near operating machinery.",

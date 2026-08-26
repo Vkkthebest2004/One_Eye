@@ -21,7 +21,7 @@ class FireSmokeDetector:
     Fire & Smoke Hazard Detection Provider.
     Supports dedicated model inferences or robust visual energy/color heuristics.
     """
-    def __init__(self, min_area_ratio: float = 0.005):
+    def __init__(self, min_area_ratio: float = 0.12):
         self.min_area_ratio = min_area_ratio
 
     def detect(self, frame: np.ndarray) -> List[FireSmokeResult]:
@@ -34,12 +34,12 @@ class FireSmokeDetector:
 
         try:
             import cv2
-            # Fire detection heuristic: HSV color range (bright orange/red/yellow flame core)
+            # Fire detection heuristic: Strict HSV + YCrCb color range (high brightness, high saturation)
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
             
-            # Fire mask
-            lower_fire = np.array([0, 120, 200])
-            upper_fire = np.array([30, 255, 255])
+            # Fire mask (strictly concentrated red-orange flame cores)
+            lower_fire = np.array([0, 180, 240])
+            upper_fire = np.array([25, 255, 255])
             fire_mask = cv2.inRange(hsv, lower_fire, upper_fire)
 
             # Find flame contours
@@ -48,7 +48,7 @@ class FireSmokeDetector:
                 area = cv2.contourArea(cnt)
                 if (area / total_pixels) >= self.min_area_ratio:
                     x, y, cw, ch = cv2.boundingRect(cnt)
-                    conf = min(0.96, 0.70 + (area / total_pixels) * 5.0)
+                    conf = min(0.96, 0.85 + (area / total_pixels) * 2.0)
                     results.append(FireSmokeResult(
                         hazard_type="FIRE",
                         confidence=round(conf, 2),

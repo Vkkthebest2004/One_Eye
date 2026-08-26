@@ -2,12 +2,17 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createZone } from '@/lib/api';
+import { useOneEyeWebSocket } from '@/lib/websocket';
 
 export default function MobileCamPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const markerCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+
+  // WebSocket Live Telemetry for Mobile Overlay
+  const { cameraTracks, visualZones, activeAlerts } = useOneEyeWebSocket();
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -414,6 +419,88 @@ export default function MobileCamPage() {
     }
   };
 
+  // Live Computer Vision & Visual Danger Overlay on Phone Display
+  useEffect(() => {
+    const canvas = overlayCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Match canvas dimensions to client viewport
+    const width = canvas.parentElement?.clientWidth || window.innerWidth;
+    const height = canvas.parentElement?.clientHeight || window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    ctx.clearRect(0, 0, width, height);
+
+    // 1. Draw dynamically tracked visual danger zones on the phone
+    const zones = visualZones['CAM_MOBILE'] || visualZones['CAM_MOB_24151JEG'] || [];
+    zones.forEach((z: any) => {
+      const poly = z.polygon || [];
+      if (!poly || poly.length < 3) return;
+
+      ctx.save();
+      ctx.beginPath();
+      poly.forEach(([px, py]: [number, number], idx: number) => {
+        const x = px * width;
+        const y = py * height;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+
+      // Pulsating Danger Glow Fill
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#ef4444';
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+
+      // Zone Banner
+      const [firstX, firstY] = poly[0];
+      const tagText = `🔒 DANGER ZONE: ${(z.name || 'FORBIDDEN').toUpperCase()}`;
+      ctx.font = 'bold 11px monospace';
+      const tagW = ctx.measureText(tagText).width + 10;
+      ctx.fillStyle = '#b91c1c';
+      ctx.fillRect(firstX * width, Math.max(0, firstY * height - 16), tagW, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(tagText, firstX * width + 5, Math.max(12, firstY * height - 4));
+      ctx.restore();
+    });
+
+    // 2. Draw live detected people and breach status on the phone
+    const tracks = cameraTracks['CAM_MOBILE'] || cameraTracks['CAM_MOB_24151JEG'] || [];
+    tracks.forEach((track: any) => {
+      let x = 0, y = 0, w = 0, h = 0;
+      if (track.norm_bbox && track.norm_bbox.length === 4) {
+        const [nx1, ny1, nx2, ny2] = track.norm_bbox;
+        x = nx1 * width;
+        y = ny1 * height;
+        w = Math.max(16, (nx2 - nx1) * width);
+        h = Math.max(24, (ny2 - ny1) * height);
+      }
+
+      const isBreaching = !!track.current_zone_id || (track.current_risk_score ?? 0) >= 60;
+      const strokeColor = isBreaching ? '#ef4444' : '#10b981';
+
+      ctx.save();
+      ctx.lineWidth = isBreaching ? 3 : 2;
+      ctx.strokeStyle = strokeColor;
+      ctx.strokeRect(x, y, w, h);
+
+      // Top Tag
+      const tagText = isBreaching ? `🚨 IN DANGER ZONE!` : `👤 Person #${track.track_id ?? '01'}`;
+      ctx.font = 'bold 11px monospace';
+      const tagW = ctx.measureText(tagText).width + 8;
+      ctx.fillStyle = strokeColor;
+      ctx.fillRect(x, Math.max(0, y - 16), tagW, 16);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(tagText, x + 4, Math.max(12, y - 4));
+      ctx.restore();
+    });
+  }, [cameraTracks, visualZones]);
+
   return (
     <div className="fixed inset-0 bg-black flex flex-col justify-between text-white font-sans select-none overflow-hidden">
       {/* Hidden Canvas */}
@@ -426,6 +513,12 @@ export default function MobileCamPage() {
         playsInline
         muted
         className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      {/* Live AI Overlay Canvas on Phone */}
+      <canvas
+        ref={overlayCanvasRef}
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
       />
 
       {/* Top Header Bar */}

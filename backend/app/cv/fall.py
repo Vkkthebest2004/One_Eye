@@ -33,11 +33,11 @@ class FallDetector:
     Progression:
     1. STANDING: Normal upright human posture (aspect ratio h/w > 1.4).
     2. FALLING: Rapid downward velocity or sudden posture transition.
-    3. FALLEN: Horizontal orientation on ground plane (aspect ratio < 0.9).
+    3. FALLEN: Horizontal orientation on ground plane (aspect ratio < 0.7).
     4. FALL_CONFIRMED: Remains horizontal on floor for >= confirmation_duration_sec.
-       Eliminates sitting, stooping, or bending false positives.
+       Eliminates sitting, stooping, bending, or camera tilt false positives.
     """
-    def __init__(self, confirmation_duration_sec: float = 1.5):
+    def __init__(self, confirmation_duration_sec: float = 3.5):
         self.confirmation_duration_sec = confirmation_duration_sec
         # worker_id -> {'first_down_time': float, 'last_seen': float, 'state': str, 'aspect_ratios': list}
         self.worker_fall_states: Dict[int, Dict[str, Any]] = {}
