@@ -10,10 +10,17 @@ import {
   CameraRiskStat
 } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== 'undefined') {
+    return `http://${window.location.hostname || 'localhost'}:8001`;
+  }
+  return 'http://localhost:8001';
+};
 
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const base = getApiBase();
+  const res = await fetch(`${base}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -255,8 +262,16 @@ export async function startDirectUsbStream(serial?: string): Promise<{ success: 
   });
 }
 
+export async function connectRtspCamera(url: string, cameraId: string = 'CAM_MOB_24151JEG', name: string = 'Mobile RTSP Camera'): Promise<any> {
+  return fetchJson<any>('/api/mobile/rtsp-connect', {
+    method: 'POST',
+    body: JSON.stringify({ url, camera_id: cameraId, name }),
+  });
+}
+
 export function getMobileStreamUrl(serial: string, fps: number = 15): string {
-  return `${API_BASE}/api/mobile/stream/${serial}?fps=${fps}`;
+  const base = getApiBase();
+  return `${base}/api/mobile/stream/${serial}?fps=${fps}`;
 }
 
 export async function getSystemMode(): Promise<{ ai_enabled: boolean; mode: string; message: string }> {
@@ -284,5 +299,5 @@ export async function toggleDemoMode(enabled?: boolean): Promise<{ demo_mode: bo
 export function getMediaUrl(path?: string | null): string {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `${API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
+  return `${getApiBase()}${path.startsWith('/') ? '' : '/'}${path}`;
 }

@@ -51,9 +51,23 @@ class CameraSource:
         self.last_frame_time: float = 0.0
         self.connected: bool = False
         self._last_reconnect_attempt: float = 0.0
+        self.rtsp_cam: Optional[Any] = None
 
     def connect(self) -> bool:
         try:
+            # 1. Direct RTSP / HTTP IP Camera Ingestion (Low-latency FFmpeg)
+            if isinstance(self.actual_source, str) and any(self.actual_source.startswith(p) for p in ["rtsp://", "http://", "https://", "rtmp://"]):
+                from app.cv.rtsp_camera import RTSPCamera
+                self.rtsp_cam = RTSPCamera(self.actual_source, width=1280, height=720, target_fps=30)
+                if self.rtsp_cam.start():
+                    self.fps = 30.0
+                    self.width = 1280
+                    self.height = 720
+                    self.connected = True
+                    logger.info(f"[{self.camera_id}] Connected to RTSP/HTTP stream via low-latency FFmpeg: {self.actual_source}")
+                    return True
+                logger.warning(f"[{self.camera_id}] RTSPCamera FFmpeg failed, falling back to OpenCV...")
+
             if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web"):
                 self.fps = 30.0
                 self.width = 1280
@@ -122,6 +136,15 @@ class CameraSource:
         Returns: (success, frame, timestamp)
         """
         now = time.time()
+
+        # Check RTSPCamera FFmpeg stream first
+        if self.rtsp_cam and self.rtsp_cam.is_alive():
+            ok, frame, ts = self.rtsp_cam.read()
+            if ok and frame is not None:
+                self.frame_count += 1
+                self.last_frame_time = ts
+                self.connected = True
+                return True, frame, ts
 
         if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web" or self.actual_source.startswith("mobile:")):
             from app.cv.usb_mobile import mobile_manager
@@ -194,6 +217,9 @@ class CameraSource:
         return True, frame, timestamp
 
     def release(self):
+        if self.rtsp_cam:
+            self.rtsp_cam.stop()
+            self.rtsp_cam = None
         if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
             self.connected = False
             return

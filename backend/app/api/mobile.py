@@ -20,10 +20,15 @@ from typing import Optional
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.database import get_db
+from app.db.models import Camera
+from app.db.repositories.camera_repo import CameraRepository
+from app.cv.pipeline import pipeline_manager
 from app.cv.usb_mobile import (
     ConnectionMode,
     MobileConnectionManager,
@@ -38,6 +43,12 @@ router = APIRouter(prefix="/api/mobile", tags=["Mobile USB"])
 # ---------------------------------------------------------------------------
 # Request / Response Schemas
 # ---------------------------------------------------------------------------
+
+class RTSPConnectRequest(BaseModel):
+    url: str = Field(..., description="RTSP or HTTP IP Camera URL (e.g. rtsp://192.168.1.105:8554/live or http://192.168.1.105:8080/video)")
+    camera_id: str = Field(default="CAM_MOB_24151JEG")
+    name: str = Field(default="Mobile RTSP Camera (Pixel 6a)")
+
 
 class ConnectRequest(BaseModel):
     serial: str = Field(..., json_schema_extra={"example": "RFXXXXXXXXXXXXXX"})
@@ -426,4 +437,36 @@ async def mobile_stream_ws(websocket: WebSocket, camera_id: str = "CAM_MOBILE"):
         logger.info(f"Mobile web camera disconnected: {camera_id}")
     except Exception as e:
         logger.warning(f"Mobile stream error: {e}")
+
+
+@router.post("/rtsp-connect")
+async def connect_rtsp_camera(req: RTSPConnectRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Connect any mobile phone or factory CCTV camera via standard RTSP / HTTP URL.
+    Examples:
+      - rtsp://192.168.1.105:8554/live  (Larix Broadcaster / RTSP Camera App)
+      - http://192.168.1.105:8080/video (IP Webcam Android App)
+    """
+    repo = CameraRepository(db)
+    cam = await repo.get_by_id(req.camera_id)
+    if cam:
+        await repo.update(req.camera_id, source=req.url, status="ONLINE", source_type="rtsp")
+    else:
+        cam = Camera(
+            id=req.camera_id,
+            name=req.name,
+            source=req.url,
+            source_type="rtsp",
+            status="ONLINE",
+            fps=30.0,
+            resolution="1280x720",
+            is_calibrated=True
+        )
+        await repo.create(cam)
+
+    # Register and start pipeline with new RTSP source immediately
+    pipeline_manager.register_camera(req.camera_id, req.url)
+    pipeline_manager.start_camera(req.camera_id)
+    logger.info(f"Connected RTSP camera '{req.camera_id}' to source: {req.url}")
+    return {"status": "connected", "camera_id": req.camera_id, "url": req.url}
 

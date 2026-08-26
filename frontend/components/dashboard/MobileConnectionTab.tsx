@@ -12,6 +12,7 @@ import {
   launchCameraOnPhone,
   openBrowserCamOnPhone,
   startDirectUsbStream,
+  connectRtspCamera,
   MobileStatus,
   MobileDevice,
   MobileConnectResponse,
@@ -49,6 +50,26 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
   const [isLaunching, setIsLaunching] = useState(false);
   const [autoScanEnabled, setAutoScanEnabled] = useState(false);
   const scanAbortRef = useRef(false);
+
+  const [rtspUrl, setRtspUrl] = useState('rtsp://192.168.1.105:8554/live');
+  const [isConnectingRtsp, setIsConnectingRtsp] = useState(false);
+
+  const handleConnectRtsp = async () => {
+    if (!rtspUrl.trim()) {
+      setToast({ type: 'error', msg: 'Please enter a valid RTSP or HTTP IP Camera URL.' });
+      return;
+    }
+    setIsConnectingRtsp(true);
+    try {
+      await connectRtspCamera(rtspUrl.trim(), 'CAM_MOB_24151JEG', 'Pixel 6a (RTSP Stream)');
+      setToast({ type: 'success', msg: `Connected to RTSP stream: ${rtspUrl}` });
+      if (onDeviceConnected) onDeviceConnected();
+    } catch (e: any) {
+      setToast({ type: 'error', msg: `RTSP Connection Error: ${e.message}` });
+    } finally {
+      setIsConnectingRtsp(false);
+    }
+  };
 
   // Fetch status, devices & host info on initial mount
   useEffect(() => {
@@ -271,6 +292,53 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
               Open Web Cam
             </a>
           </div>
+        </div>
+      </div>
+
+      {/* ── Standard RTSP / IP Camera Stream Card ──── */}
+      <div className="bg-gradient-to-r from-indigo-950/40 via-surface-container to-indigo-900/30 border border-indigo-500/40 rounded-xl p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+              <span className="material-symbols-outlined text-2xl">videocam</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-on-surface">RTSP / IP Camera Stream Feed</h3>
+                <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-mono text-[10px] font-bold">
+                  STANDARD RTSP (H.264)
+                </span>
+              </div>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                Ingest live camera video via standard RTSP / HTTP URL (Larix Broadcaster, IP Webcam Android App, or CCTV).
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-gray-400 text-lg">
+              link
+            </span>
+            <input
+              type="text"
+              value={rtspUrl}
+              onChange={(e) => setRtspUrl(e.target.value)}
+              placeholder="rtsp://192.168.1.105:8554/live or http://192.168.1.105:8080/video"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface-container-high border border-outline/30 rounded-lg text-xs font-mono text-on-surface focus:outline-none focus:border-indigo-400 transition-all"
+            />
+          </div>
+          <button
+            onClick={handleConnectRtsp}
+            disabled={isConnectingRtsp}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-mono font-bold rounded-lg shadow-sm transition-all whitespace-nowrap"
+          >
+            <span className="material-symbols-outlined text-sm">
+              {isConnectingRtsp ? 'sync' : 'cell_tower'}
+            </span>
+            {isConnectingRtsp ? 'CONNECTING RTSP...' : 'CONNECT RTSP CAMERA'}
+          </button>
         </div>
       </div>
 
