@@ -111,6 +111,13 @@ async def get_camera_stream(camera_id: str, fps: int = 30):
         while True:
             t0 = asyncio.get_event_loop().time()
             frame = pipe.latest_frame
+            if frame is None and (camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE"):
+                from app.cv.usb_mobile import mobile_manager
+                web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+                if web_res:
+                    frame = web_res[0]
+                    pipe.latest_frame = frame
+
             if frame is not None:
                 # Fast path: only encode if new frame object arrived
                 if frame is not last_frame_ref or cached_jpeg is None:

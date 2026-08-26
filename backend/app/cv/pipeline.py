@@ -112,15 +112,18 @@ class CameraPipeline:
         fps_frame_count = 0
         target_frame_time = self.frame_interval
 
+        last_frame_received_time = time.time()
         while self.is_running:
             loop_start = time.time()
 
             ret, frame, timestamp = await asyncio.to_thread(self.source.read)
             if not ret or frame is None:
-                await self.dispatcher.broadcast_camera_status(self.camera_id, "OFFLINE", 0.0)
-                await asyncio.sleep(0.1)
+                if (loop_start - last_frame_received_time) > 5.0:
+                    await self.dispatcher.broadcast_camera_status(self.camera_id, "OFFLINE", 0.0)
+                await asyncio.sleep(0.05)
                 continue
 
+            last_frame_received_time = loop_start
             self.latest_frame = frame
             fps_frame_count += 1
 
