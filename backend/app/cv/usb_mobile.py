@@ -273,7 +273,9 @@ class ADBHelper:
         except Exception:
             return False
 
-    def open_url(self, url: str, serial: Optional[str] = None) -> bool:
+    _last_opened: Dict[str, float] = {}
+
+    def open_url(self, url: str, serial: Optional[str] = None, force: bool = False) -> bool:
         """Automatically reverse ports for secure camera permissions and open the URL on the phone."""
         if not self.available:
             return False
@@ -284,6 +286,14 @@ class ADBHelper:
             # Reverse ports 3001 and 8001 so phone accesses localhost securely
             self.reverse_port(target_serial, 3001, 3001)
             self.reverse_port(target_serial, 8001, 8001)
+
+            # Prevent repeatedly reloading Chrome if opened recently (prevents reload loop)
+            now = time.time()
+            if not force and target_serial in ADBHelper._last_opened:
+                if (now - ADBHelper._last_opened[target_serial]) < 30.0:
+                    return True
+
+            ADBHelper._last_opened[target_serial] = now
 
             # Wake screen
             subprocess.run([self.adb_path, "-s", target_serial, "shell", "input keyevent 224"], timeout=5)

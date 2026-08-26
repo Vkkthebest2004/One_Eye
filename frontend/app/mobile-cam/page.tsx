@@ -95,8 +95,14 @@ export default function MobileCamPage() {
 
       ws.onclose = () => {
         setIsStreaming(false);
-        setStatusMsg('Stream disconnected. Auto-reconnecting...');
-        setTimeout(connectWebSocket, 1000);
+        if (streamRef.current) {
+          setStatusMsg('Stream disconnected. Reconnecting in 3s...');
+          setTimeout(() => {
+            if (streamRef.current) connectWebSocket();
+          }, 3000);
+        } else {
+          setStatusMsg('Ready. Tap Enable Camera to start streaming.');
+        }
       };
 
       ws.onerror = () => {

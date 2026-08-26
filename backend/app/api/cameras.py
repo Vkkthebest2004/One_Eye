@@ -74,6 +74,7 @@ async def delete_camera(camera_id: str, db: AsyncSession = Depends(get_db)):
 async def get_camera_stream(camera_id: str, fps: int = 30):
     """High-speed live MJPEG video stream from camera pipeline (up to 60 FPS)."""
     import cv2
+    import numpy as np
     import asyncio
     from fastapi.responses import StreamingResponse
 
