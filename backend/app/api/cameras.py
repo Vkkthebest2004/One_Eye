@@ -66,6 +66,7 @@ async def delete_camera(camera_id: str, db: AsyncSession = Depends(get_db)):
     deleted = await repo.delete(camera_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Camera not found")
+    await pipeline_manager.remove_camera(camera_id)
     return None
 
 
@@ -78,11 +79,30 @@ async def get_camera_stream(camera_id: str, fps: int = 30):
 
     pipe = pipeline_manager.get_pipeline(camera_id)
     if not pipe:
-        raise HTTPException(status_code=404, detail="Camera pipeline not found")
+        # If mobile camera, auto-register and start pipeline immediately
+        if camera_id.startswith("CAM_MOB") or camera_id == "CAM_MOBILE":
+            source_uri = f"mobile_web:{camera_id}"
+            pipeline_manager.register_camera(camera_id, source_uri)
+            pipeline_manager.start_camera(camera_id)
+            pipe = pipeline_manager.get_pipeline(camera_id)
+
+    if not pipe:
+        raise HTTPException(status_code=404, detail=f"Camera pipeline '{camera_id}' not found")
 
     target_fps = min(60, max(1, fps))
     interval = 1.0 / target_fps
     encode_params = [cv2.IMWRITE_JPEG_QUALITY, 70]
+
+    # Pre-render standby banner for when mobile camera is connecting
+    standby_img = np.zeros((480, 640, 3), dtype=np.uint8)
+    standby_img[:] = (18, 24, 27)
+    cv2.rectangle(standby_img, (20, 20), (620, 460), (38, 52, 60), 1)
+    cv2.putText(standby_img, "ONE EYE // LIVE SURVEILLANCE FEED", (40, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 220, 255), 1)
+    cv2.putText(standby_img, f"CAMERA ID: {camera_id}", (40, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (160, 180, 190), 1)
+    cv2.putText(standby_img, "STATUS: AWAITING MOBILE CAMERA STREAM", (40, 230), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 180), 2)
+    cv2.putText(standby_img, "Tap 'Enable Camera' on phone to broadcast live feed", (40, 265), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (140, 160, 170), 1)
+    _, standby_jpeg_raw = cv2.imencode(".jpg", standby_img, [cv2.IMWRITE_JPEG_QUALITY, 60])
+    standby_bytes = standby_jpeg_raw.tobytes()
 
     async def frame_generator():
         last_frame_ref = None
@@ -97,16 +117,19 @@ async def get_camera_stream(camera_id: str, fps: int = 30):
                     if ok:
                         cached_jpeg = jpeg.tobytes()
                         last_frame_ref = frame
-                
-                if cached_jpeg:
-                    yield (
-                        b"--frame\r\n"
-                        b"Content-Type: image/jpeg\r\n\r\n"
-                        + cached_jpeg
-                        + b"\r\n"
-                    )
+                out_bytes = cached_jpeg
+            else:
+                out_bytes = standby_bytes
+
+            if out_bytes:
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n"
+                    + out_bytes
+                    + b"\r\n"
+                )
             elapsed = asyncio.get_event_loop().time() - t0
-            sleep_time = max(0.005, interval - elapsed)
+            sleep_time = max(0.01, interval - elapsed)
             await asyncio.sleep(sleep_time)
 
     return StreamingResponse(

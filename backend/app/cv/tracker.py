@@ -205,3 +205,8 @@ class MultiObjectTracker:
         self.tracks = {tid: trk for tid, trk in self.tracks.items() if trk.state != "REMOVED"}
 
         return [trk for trk in self.tracks.values() if trk.state == "ACTIVE"]
+
+
+# Backward compatibility alias
+MultiTracker = MultiObjectTracker
+

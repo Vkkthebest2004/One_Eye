@@ -380,6 +380,40 @@ class PipelineManager:
         self.pipelines[pipeline.camera_id] = pipeline
         pipeline.start()
 
+    def register_camera(self, camera_id: str, source_uri: str) -> CameraPipeline:
+        """Register a camera by ID and source URI and start its pipeline immediately."""
+        if camera_id in self.pipelines:
+            existing = self.pipelines[camera_id]
+            if existing.source_uri == source_uri and existing.is_running:
+                return existing
+            existing.stop()
+
+        from app.cv.detector import Detector
+        from app.cv.evidence import EvidenceManager
+        from app.events.event_manager import EventManager
+        from app.alerts.dispatcher import dispatcher
+
+        pipeline = CameraPipeline(
+            camera_id=camera_id,
+            source_uri=source_uri,
+            detector=Detector(),
+            evidence_manager=EvidenceManager(),
+            event_manager=EventManager(),
+            alert_dispatcher=dispatcher,
+        )
+        self.register(pipeline)
+        return pipeline
+
+    def start_camera(self, camera_id: str):
+        """Start or ensure a camera pipeline is running."""
+        p = self.get(camera_id)
+        if p and not p.is_running:
+            p.start()
+
+    async def remove_camera(self, camera_id: str):
+        """Remove and stop a camera pipeline."""
+        await self.unregister(camera_id)
+
     async def unregister(self, camera_id: str):
         if camera_id in self.pipelines:
             pipeline = self.pipelines.pop(camera_id)

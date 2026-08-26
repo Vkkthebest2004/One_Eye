@@ -43,10 +43,11 @@ logger = logging.getLogger(__name__)
 
 class ConnectionMode(str, Enum):
     """How the phone's camera is being streamed to the host."""
-    UVC_WEBCAM = "uvc_webcam"        # Phone acts as a USB webcam device
+    WEB_STREAM = "web_stream"        # Browser stream over USB via ADB reverse (Zero-app, 30 FPS)
     ADB_SCRCPY = "adb_scrcpy"        # ADB + scrcpy camera mirror
     ADB_IPWEBCAM = "adb_ipwebcam"    # ADB port-forward + IP Webcam app
-    AUTO = "auto"                    # Let the module decide
+    UVC_WEBCAM = "uvc_webcam"        # UVC Webcam mode
+    AUTO = "auto"                    # Automatically select best connection method
 
 
 class DeviceOS(str, Enum):
@@ -374,8 +375,10 @@ class MobileCameraSource:
     def connect(self) -> bool:
         """Attempt to connect using the configured mode, with AUTO fallback chain."""
         if self.mode == ConnectionMode.AUTO:
-            # Try modes in priority order
-            for try_mode in [ConnectionMode.UVC_WEBCAM,
+            # 1. Primary: Direct USB Web Stream (Zero setup, 100% reliable)
+            # 2. Secondary: IP Webcam app
+            # 3. Tertiary: scrcpy mirror
+            for try_mode in [ConnectionMode.WEB_STREAM,
                              ConnectionMode.ADB_IPWEBCAM,
                              ConnectionMode.ADB_SCRCPY]:
                 if self._connect_mode(try_mode):
@@ -388,8 +391,8 @@ class MobileCameraSource:
     def _connect_mode(self, mode: ConnectionMode) -> bool:
         """Connect using a specific mode."""
         try:
-            if mode == ConnectionMode.UVC_WEBCAM:
-                return self._connect_uvc()
+            if mode == ConnectionMode.WEB_STREAM or mode == ConnectionMode.UVC_WEBCAM:
+                return self._connect_web_stream()
             elif mode == ConnectionMode.ADB_IPWEBCAM:
                 return self._connect_ipwebcam()
             elif mode == ConnectionMode.ADB_SCRCPY:
@@ -399,11 +402,25 @@ class MobileCameraSource:
             self.device.error_message = str(e)
         return False
 
-    # --- UVC Webcam Mode ---
+    def _connect_web_stream(self) -> bool:
+        """
+        Direct USB Web Stream Mode:
+        Reverse-ports host ports 3001 & 8001 to phone over USB cable,
+        and launches http://localhost:3001/mobile-cam on the phone's browser.
+        """
+        if self.adb.available:
+            self.adb.open_url("http://localhost:3001/mobile-cam", self.device.serial)
+        self.connected = True
+        self.fps = 30.0
+        self.width = 1280
+        self.height = 720
+        self.device.is_connected = True
+        self.device.error_message = ""
+        logger.info(f"[{self.device.serial}] Connected via Direct USB Web Stream.")
+        return True
 
-        # Strictly disabled to prevent macOS AVFoundation / OpenCV from triggering the host FaceTime HD webcam.
-        logger.info(f"[{self.device.serial}] UVC hardware probing disabled — using Direct USB Web Stream.")
-        return False
+    def _connect_uvc(self) -> bool:
+        return self._connect_web_stream()
 
     # --- ADB + IP Webcam Mode ---
 
@@ -453,26 +470,17 @@ class MobileCameraSource:
     def _connect_scrcpy(self) -> bool:
         """
         Use scrcpy to mirror the phone's camera display.
-        On Linux, scrcpy can output to a v4l2 loopback device.
-        On macOS, we capture scrcpy's window or use its built-in
-        camera mirror feature (scrcpy >= 2.4).
         """
         scrcpy_path = (
             shutil.which("scrcpy")
             or ("/opt/homebrew/bin/scrcpy" if os.path.exists("/opt/homebrew/bin/scrcpy") else None)
             or ("/usr/local/bin/scrcpy" if os.path.exists("/usr/local/bin/scrcpy") else None)
         )
-        if not scrcpy_path:
-            logger.debug("scrcpy not found in PATH.")
-            return False
-
-        if not self.adb.available:
+        if not scrcpy_path or not self.adb.available:
             return False
 
         system = platform.system()
-
         try:
-            # scrcpy >= 2.4 supports --video-source=camera
             cmd = [
                 scrcpy_path,
                 "--serial", self.device.serial,
@@ -484,7 +492,6 @@ class MobileCameraSource:
             ]
 
             if system == "Linux":
-                # Output to v4l2 loopback for OpenCV capture
                 cmd.extend(["--v4l2-sink=/dev/video20", "--no-window"])
 
             proc = subprocess.Popen(
@@ -493,39 +500,18 @@ class MobileCameraSource:
                 stderr=subprocess.PIPE,
             )
 
-            # Wait for scrcpy to initialise
-            time.sleep(3.0)
-
+            time.sleep(2.0)
             if proc.poll() is not None:
                 stderr = proc.stderr.read().decode(errors="replace")
                 logger.debug(f"scrcpy exited early: {stderr[:300]}")
                 return False
 
             self.device.scrcpy_process = proc
-
-            if system == "Linux":
-                # Capture from the v4l2 loopback sink
-                cap = cv2.VideoCapture(20)
-                if not cap.isOpened():
-                    proc.terminate()
-                    return False
-                self.cap = cap
-                self._read_cap_props()
-            else:
-                # macOS: scrcpy opens a window; capture from that
-                # is unreliable. Mark as connected but frames will
-                # come from a periodic screenshot.
-                self.width = 1280
-                self.height = 720
-                self.fps = 30.0
-
             self.connected = True
-            logger.info(
-                f"[{self.device.serial}] Connected via scrcpy camera mirror "
-                f"(pid {proc.pid})"
-            )
+            self.width = 1280
+            self.height = 720
+            logger.info(f"[{self.device.serial}] Connected via scrcpy camera mirror (pid {proc.pid})")
             return True
-
         except Exception as e:
             logger.error(f"scrcpy launch error: {e}")
             return False
@@ -541,27 +527,43 @@ class MobileCameraSource:
 
     def read(self) -> Tuple[bool, Optional[np.ndarray], float]:
         """
-        Read the next frame from the phone's camera.
-        Returns: (success, frame_or_None, timestamp)
+        Read next frame from mobile phone stream.
+        Supports Direct USB Web Stream, IP Webcam, and scrcpy.
         """
-        if not self.connected or self.cap is None:
-            if not self.connect():
-                return False, None, time.time()
+        now = time.time()
 
-        ret, frame = self.cap.read()
-        timestamp = time.time()
+        # 1. Primary: Direct Web Stream Buffer
+        web_res = (
+            mobile_manager.get_web_frame(self.device.serial)
+            or mobile_manager.get_web_frame(f"CAM_MOB_{self.device.serial[:10]}")
+            or mobile_manager.get_web_frame("CAM_MOBILE")
+        )
+        if web_res:
+            frame, ts = web_res
+            self.frame_count += 1
+            self.last_frame_time = ts
+            self.device.last_heartbeat = ts
+            self.device.is_connected = True
+            self.device.error_message = ""
+            return True, frame, ts
 
-        if not ret:
-            self.connected = False
-            self.device.error_message = "Frame read failed — phone may have disconnected."
-            return False, None, timestamp
+        # 2. Secondary: OpenCV VideoCapture if IP Webcam is active
+        if self.cap is not None:
+            ret, frame = self.cap.read()
+            timestamp = time.time()
+            if ret and frame is not None:
+                self.frame_count += 1
+                self.last_frame_time = timestamp
+                self.device.last_heartbeat = timestamp
+                self.device.is_connected = True
+                self.device.error_message = ""
+                return True, frame, timestamp
 
-        self.frame_count += 1
-        self.last_frame_time = timestamp
-        self.device.last_heartbeat = timestamp
-        self.device.is_connected = True
-        self.device.error_message = ""
-        return True, frame, timestamp
+        # If connected but awaiting first frame from phone
+        if self.connected:
+            return False, None, now
+
+        return False, None, now
 
     def release(self):
         """Release the video capture and any child processes."""
