@@ -8,6 +8,8 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`2e62991`** | `safety-engine` | Multi-point zone intersection, resilient visual tracking fallback, eliminate false alarms, live mobile HUD |
+| **`fd9560d`** | `docs` | Update commit log with visual memory milestone |
 | **`15ae073`** | `visual-memory` | Planar Homography danger tracking, world-anchored visual memory, & mobile photo marker |
 | **`8be1ca8`** | `docs` | Add comprehensive git commits log & failsafe recovery guide (`GIT_COMMITS_LOG.md`) |
 | **`c096cbb`** | `mobile` | Consolidate single mobile camera channel (`CAM_MOBILE`) & robust sensor initialization |
