@@ -8,6 +8,8 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`15ae073`** | `visual-memory` | Planar Homography danger tracking, world-anchored visual memory, & mobile photo marker |
+| **`8be1ca8`** | `docs` | Add comprehensive git commits log & failsafe recovery guide (`GIT_COMMITS_LOG.md`) |
 | **`c096cbb`** | `mobile` | Consolidate single mobile camera channel (`CAM_MOBILE`) & robust sensor initialization |
 | **`5864496`** | `cameras` | Fix real-time frame generator for mobile stream to prevent stalling |
 | **`9441f08`** | `perception` | Shared model cache singleton for ultra-low latency multi-channel inference |
