@@ -68,11 +68,6 @@ async def seed_initial_data():
             ),
         ]
 
-        # Purge duplicate legacy mobile camera entries
-        from sqlalchemy import delete
-        await db.execute(delete(Camera).where(Camera.id == "CAM_MOB_24151JEG"))
-        await db.commit()
-
         for cam in default_cameras:
             if cam.id not in existing_ids:
                 db.add(cam)

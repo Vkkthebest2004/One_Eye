@@ -502,6 +502,7 @@ export const MobileConnectionTab: React.FC<MobileConnectionTabProps> = ({ onDevi
                 device={dev}
                 isConnecting={connectingSerial === dev.serial}
                 onConnect={() => handleConnect(dev.serial)}
+                onDirectUsbStream={() => handleStartDirectUsbWebStream(dev.serial)}
                 onDisconnect={() => handleDisconnect(dev.serial)}
                 onPreview={() => setPreviewSerial(dev.serial === previewSerial ? null : dev.serial)}
                 isPreviewOpen={previewSerial === dev.serial}
@@ -614,10 +615,11 @@ const DeviceCard: React.FC<{
   device: MobileDevice;
   isConnecting: boolean;
   onConnect: () => void;
+  onDirectUsbStream?: () => void;
   onDisconnect: () => void;
   onPreview: () => void;
   isPreviewOpen: boolean;
-}> = ({ device, isConnecting, onConnect, onDisconnect, onPreview, isPreviewOpen }) => (
+}> = ({ device, isConnecting, onConnect, onDirectUsbStream, onDisconnect, onPreview, isPreviewOpen }) => (
   <div className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${
     device.is_connected
       ? 'bg-severity-safe/5 border-severity-safe/25'
@@ -686,16 +688,28 @@ const DeviceCard: React.FC<{
           </button>
         </>
       ) : (
-        <button
-          onClick={onConnect}
-          disabled={isConnecting}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-primary text-on-primary text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-        >
-          <span className={`material-symbols-outlined text-sm ${isConnecting ? 'animate-spin' : ''}`}>
-            {isConnecting ? 'progress_activity' : 'link'}
-          </span>
-          {isConnecting ? 'Connecting...' : 'Connect'}
-        </button>
+        <div className="flex items-center gap-2">
+          {onDirectUsbStream && (
+            <button
+              onClick={onDirectUsbStream}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shadow-sm transition-all duration-200"
+              title="Launch browser broadcaster on phone via ADB reverse"
+            >
+              <span className="material-symbols-outlined text-sm">bolt</span>
+              Direct USB Stream
+            </button>
+          )}
+          <button
+            onClick={onConnect}
+            disabled={isConnecting}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-primary text-on-primary text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            <span className={`material-symbols-outlined text-sm ${isConnecting ? 'animate-spin' : ''}`}>
+              {isConnecting ? 'progress_activity' : 'link'}
+            </span>
+            {isConnecting ? 'Connecting...' : 'Connect'}
+          </button>
+        </div>
       )}
     </div>
   </div>
