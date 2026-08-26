@@ -58,7 +58,7 @@ async def seed_initial_data():
             ),
             Camera(
                 id="CAM_MOBILE",
-                name="Mobile Live Camera (Direct USB / Web Stream)",
+                name="Google Pixel 6a (Mobile Camera)",
                 source="mobile_web:CAM_MOBILE",
                 source_type="mobile",
                 status="ONLINE",
@@ -66,17 +66,12 @@ async def seed_initial_data():
                 resolution="1280x720",
                 is_calibrated=True,
             ),
-            Camera(
-                id="CAM_MOB_24151JEG",
-                name="Pixel 6a (Direct USB Stream)",
-                source="mobile:24151JEGR16946",
-                source_type="mobile",
-                status="ONLINE",
-                fps=30.0,
-                resolution="1280x720",
-                is_calibrated=True,
-            ),
         ]
+
+        # Purge duplicate legacy mobile camera entries
+        from sqlalchemy import delete
+        await db.execute(delete(Camera).where(Camera.id == "CAM_MOB_24151JEG"))
+        await db.commit()
 
         for cam in default_cameras:
             if cam.id not in existing_ids:

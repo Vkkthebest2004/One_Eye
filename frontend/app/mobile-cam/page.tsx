@@ -76,6 +76,8 @@ export default function MobileCamPage() {
           } catch (e) {}
         });
         streamRef.current = null;
+        // Allow hardware sensor 50ms to release cleanly
+        await new Promise((r) => setTimeout(r, 50));
       }
 
       const mode: 'environment' | 'user' = target === 'user' ? 'user' : 'environment';
@@ -83,7 +85,7 @@ export default function MobileCamPage() {
 
       if (target && target.length > 20) {
         constraints = {
-          video: { deviceId: { exact: target } },
+          video: { deviceId: { exact: target }, width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false,
         };
       }
@@ -94,20 +96,30 @@ export default function MobileCamPage() {
       } catch (e1) {
         try {
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: mode },
+            video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
             audio: false,
           });
         } catch (e2) {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: mode },
+              audio: false,
+            });
+          } catch (e3) {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false,
+            });
+          }
         }
       }
 
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('muted', 'true');
+        videoRef.current.muted = true;
         try {
           await videoRef.current.play();
         } catch (e) {
