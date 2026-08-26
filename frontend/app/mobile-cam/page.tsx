@@ -60,9 +60,11 @@ export default function MobileCamPage() {
       setHasTorch(!!capabilities.torch);
 
       setStatusMsg('Camera connected. Streaming to ONE EYE AI pipeline...');
+      setIsStreaming(true);
       connectWebSocket();
     } catch (err: any) {
       console.error('Camera access error:', err);
+      setIsStreaming(false);
       setStatusMsg(`Camera Error: ${err.message || 'Permission denied'}`);
     }
   };
@@ -98,19 +100,19 @@ export default function MobileCamPage() {
       };
 
       ws.onclose = () => {
-        setIsStreaming(false);
         if (streamRef.current) {
-          setStatusMsg('Stream disconnected. Reconnecting in 3s...');
+          setStatusMsg('Stream disconnected. Reconnecting in 2s...');
           setTimeout(() => {
             if (streamRef.current) connectWebSocket();
-          }, 3000);
+          }, 2000);
         } else {
+          setIsStreaming(false);
           setStatusMsg('Ready. Tap Enable Camera to start streaming.');
         }
       };
 
       ws.onerror = () => {
-        setIsStreaming(false);
+        console.warn('WebSocket stream error');
       };
 
       wsRef.current = ws;
