@@ -84,6 +84,11 @@ class CameraSource:
                 self.connected = False
                 return False
 
+            if isinstance(self.actual_source, int):
+                logger.info(f"[{self.camera_id}] Skipping local hardware webcam index {self.actual_source} to prevent webcam activation.")
+                self.connected = False
+                return False
+
             if self.cap is not None:
                 self.cap.release()
             

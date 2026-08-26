@@ -311,61 +311,10 @@ class UVCScanner:
 
     @staticmethod
     def find_video_devices(force_refresh: bool = False) -> List[Dict[str, any]]:
-        now = time.time()
-        if not force_refresh and UVCScanner._cached_devices and (now - UVCScanner._last_scan_time < 60.0):
-            return UVCScanner._cached_devices
-
-        system = platform.system()
-        devices = []
-
-        if system == "Linux":
-            for path in sorted(Path("/dev").glob("video*")):
-                try:
-                    idx = int(re.search(r"\d+", path.name).group())
-                    name = UVCScanner._get_linux_device_name(path)
-                    devices.append({
-                        "index": idx,
-                        "path": str(path),
-                        "name": name,
-                        "is_phone": UVCScanner._looks_like_phone(name),
-                    })
-                except Exception:
-                    pass
-        elif system == "Darwin":
-            # macOS: Query system_profiler passively (zero camera hardware access)
-            try:
-                out = subprocess.run(
-                    ["system_profiler", "SPCameraDataType"],
-                    capture_output=True, text=True, timeout=3
-                ).stdout
-                
-                # Parse camera entries from system_profiler output
-                lines = [line.strip() for line in out.splitlines() if line.strip()]
-                cam_names = []
-                for line in lines:
-                    if line.endswith(":") and not line.startswith("Camera:") and not line.startswith("Model ID:") and not line.startswith("Unique ID:"):
-                        cam_name = line.rstrip(":")
-                        if cam_name not in cam_names:
-                            cam_names.append(cam_name)
-
-                if not cam_names:
-                    cam_names = ["FaceTime HD Camera"]
-
-                for idx, name in enumerate(cam_names):
-                    devices.append({
-                        "index": idx,
-                        "path": f"device:{idx}",
-                        "name": name,
-                        "is_phone": UVCScanner._looks_like_phone(name),
-                    })
-            except Exception:
-                devices = [{"index": 0, "path": "device:0", "name": "Default Camera", "is_phone": False}]
-        else:
-            devices = [{"index": 0, "path": "device:0", "name": "Default Camera", "is_phone": False}]
-
-        UVCScanner._cached_devices = devices
-        UVCScanner._last_scan_time = now
-        return devices
+        # Strictly return empty list for UVC devices to completely prevent
+        # OpenCV from ever touching or activating the host/macOS webcam subsystem.
+        # Mobile phones connect purely via Direct USB Web Stream or ADB.
+        return []
 
     @staticmethod
     def _get_linux_device_name(dev_path: Path) -> str:
@@ -452,48 +401,9 @@ class MobileCameraSource:
 
     # --- UVC Webcam Mode ---
 
-    def _connect_uvc(self) -> bool:
-        """
-        Connect to the phone as a standard USB webcam device.
-        Requires the phone to be in UVC/Webcam mode (Android 14+ Developer Options
-        or iPhone via Continuity Camera on macOS).
-        """
-        idx = self.device.video_device_index
-        if idx is None:
-            # Scan for a phone-like UVC device
-            uvc_devices = UVCScanner.find_video_devices()
-            phone_devs = [d for d in uvc_devices if d.get("is_phone")]
-            if phone_devs:
-                idx = phone_devs[0]["index"]
-            else:
-                # On macOS / Linux, device index 0 is the built-in FaceTime HD laptop webcam.
-                # Only allow external USB video devices (index > 0). NEVER open index 0 for mobile!
-                external_devs = [d for d in uvc_devices if d["index"] > 0]
-                if external_devs:
-                    idx = external_devs[-1]["index"]
-                else:
-                    logger.debug(f"[{self.device.serial}] No external UVC mobile devices found (skipping laptop webcam).")
-                    return False
-
-        if idx is None or idx == 0:
-            logger.debug(f"[{self.device.serial}] Refusing to open device index 0 (laptop webcam) for mobile connection.")
-            return False
-
-        # Open video capture
-        cap = cv2.VideoCapture(idx)
-        if not cap.isOpened():
-            logger.debug(f"[{self.device.serial}] UVC device {idx} could not be opened.")
-            return False
-
-        self.cap = cap
-        self.device.video_device_index = idx
-        self._read_cap_props()
-        self.connected = True
-        logger.info(
-            f"[{self.device.serial}] Connected via UVC Webcam "
-            f"(device {idx}, {self.width}x{self.height} @ {self.fps:.0f}fps)"
-        )
-        return True
+        # Strictly disabled to prevent macOS AVFoundation / OpenCV from triggering the host FaceTime HD webcam.
+        logger.info(f"[{self.device.serial}] UVC hardware probing disabled — using Direct USB Web Stream.")
+        return False
 
     # --- ADB + IP Webcam Mode ---
 
