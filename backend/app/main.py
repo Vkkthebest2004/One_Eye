@@ -39,11 +39,15 @@ async def lifespan(app: FastAPI):
     # 1. Initialize Database
     await init_db()
 
-    # 2. Ensure directories exist
+    # 2. Seed initial cameras and danger zones
+    from app.db.seed import seed_initial_data
+    await seed_initial_data()
+
+    # 3. Ensure directories exist
     settings.get_evidence_dir().mkdir(parents=True, exist_ok=True)
     (settings.base_dir / "videos" / "demo").mkdir(parents=True, exist_ok=True)
 
-    # 3. Bootstrap default camera pipeline
+    # 4. Bootstrap default camera pipeline
     try:
         async with AsyncSessionLocal() as db:
             repo = CameraRepository(db)
