@@ -339,16 +339,30 @@ class CameraPipeline:
 
         self.avg_inference_ms = round((time.time() - t0) * 1000, 1)
 
-        # Broadcast live detection and tracking overlay updates to UI
-        self.latest_detections = [d.to_dict() for d in detections]
-        self.latest_tracks = [t.to_dict() for t in active_tracks]
+        # Broadcast live detection and tracking overlay updates to UI with normalized coords
+        self.latest_detections = [
+            {
+                **d.to_dict(),
+                "norm_bbox": [round(d.x1 / w, 4), round(d.y1 / h, 4), round(d.x2 / w, 4), round(d.y2 / h, 4)],
+                "norm_foot": [round(d.foot_x / w, 4), round(d.foot_y / h, 4)]
+            }
+            for d in detections
+        ]
+        self.latest_tracks = [
+            {
+                **t.to_dict(),
+                "norm_bbox": [round(t.bbox[0] / w, 4), round(t.bbox[1] / h, 4), round(t.bbox[2] / w, 4), round(t.bbox[3] / h, 4)],
+                "norm_foot": [round(t.foot_anchor[0] / w, 4), round(t.foot_anchor[1] / h, 4)]
+            }
+            for t in active_tracks
+        ]
 
         await self.dispatcher.broadcast_detections(
             camera_id=self.camera_id,
             detections=self.latest_detections,
             tracks=self.latest_tracks,
             fps=self.measured_fps,
-            inference_ms=self.avg_inference_ms
+            latency_ms=self.avg_inference_ms
         )
 
 

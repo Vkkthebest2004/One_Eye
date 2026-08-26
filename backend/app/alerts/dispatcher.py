@@ -80,6 +80,18 @@ class AlertDispatcher:
             "tracks": tracks
         })
 
+    async def broadcast_detections(self, camera_id: str, detections: List[Dict], tracks: List[Dict], fps: float, latency_ms: float = 0.0):
+        """Alias for real-time computer vision frame telemetry"""
+        await ws_manager.broadcast({
+            "type": "DETECTION_UPDATE",
+            "camera_id": camera_id,
+            "fps": round(fps, 1),
+            "latency_ms": round(latency_ms, 1),
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "detections": detections,
+            "tracks": tracks
+        })
+
     async def broadcast_camera_status(self, camera_id: str, status: str, fps: float):
         await ws_manager.broadcast({
             "type": "CAMERA_STATUS",
