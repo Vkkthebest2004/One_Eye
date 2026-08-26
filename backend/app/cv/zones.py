@@ -73,6 +73,30 @@ class ZoneDefinition:
 
         return False
 
+    def distance_to_point(
+        self,
+        x: float,
+        y: float,
+        frame_w: float = 1280.0,
+        frame_h: float = 720.0
+    ) -> float:
+        """
+        Calculate exact mathematical Euclidean distance from a coordinate point
+        to the danger zone polygon boundary (returns 0.0 if inside).
+        """
+        if not self.active or self._shapely_polygon is None:
+            return 999.0
+
+        px, py = x, y
+        if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
+            px = min(1.0, max(0.0, px / frame_w))
+            py = min(1.0, max(0.0, py / frame_h))
+
+        point = Point(px, py)
+        if self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point):
+            return 0.0
+        return float(self._shapely_polygon.distance(point))
+
 
 @dataclass
 class ZoneEvent:

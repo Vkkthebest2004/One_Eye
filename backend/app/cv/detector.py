@@ -205,6 +205,16 @@ class Detector(BaseDetector):
                         logger.warning(f"Could not load custom PPE model ({exc}); using integrated perception.")
                 self.ppe_model = _MODEL_CACHE.get(self.ppe_model_path)
             
+            # Initialize Pose Keypoint Model for High-Precision Foot/Ankle Ground Localization
+            pose_path = "yolov8n-pose.pt"
+            if pose_path not in _MODEL_CACHE:
+                try:
+                    logger.info(f"Loading shared YOLO Pose Keypoint detector '{pose_path}'...")
+                    _MODEL_CACHE[pose_path] = YOLO(pose_path)
+                except Exception as p_err:
+                    logger.warning(f"Pose keypoint model note ({p_err})")
+            self.pose_model = _MODEL_CACHE.get(pose_path)
+            
             logger.info(f"YOLO detector successfully online ({chosen_model})")
         except Exception as e:
             logger.warning(f"Could not load YOLO model ({e}). Detector will use fallback heuristic.")
@@ -227,6 +237,16 @@ class Detector(BaseDetector):
                     device=self.device,
                     verbose=False
                 )
+                
+                # Optional Pose Keypoint Inference for Ankle Coordinate Localization
+                pose_keypoints = None
+                if getattr(self, "pose_model", None) is not None:
+                    try:
+                        p_res = self.pose_model(frame, conf=0.35, device=self.device, verbose=False)
+                        if p_res and len(p_res) > 0 and getattr(p_res[0], "keypoints", None) is not None:
+                            pose_keypoints = p_res[0].keypoints
+                    except Exception:
+                        pass
                 
                 for r in results:
                     boxes = r.boxes
@@ -258,6 +278,32 @@ class Detector(BaseDetector):
                         foot_y = y2
                         head_x = center_x
                         head_y = y1
+
+                        # Precision Ankle Keypoint Localization (COCO kpt 15: left ankle, 16: right ankle)
+                        if category == "PERSON" and pose_keypoints is not None:
+                            try:
+                                # Find matching pose keypoint for this person bbox
+                                for kp in pose_keypoints.data:
+                                    if len(kp) >= 17:
+                                        # Keypoint 15: Left Ankle, 16: Right Ankle
+                                        l_ankle = kp[15].cpu().numpy() # [x, y, conf]
+                                        r_ankle = kp[16].cpu().numpy()
+                                        if l_ankle[2] > 0.35 or r_ankle[2] > 0.35:
+                                            valid_ankles = []
+                                            if l_ankle[2] > 0.35:
+                                                valid_ankles.append((float(l_ankle[0]), float(l_ankle[1])))
+                                            if r_ankle[2] > 0.35:
+                                                valid_ankles.append((float(r_ankle[0]), float(r_ankle[1])))
+                                            
+                                            avg_ax = sum(a[0] for a in valid_ankles) / len(valid_ankles)
+                                            max_ay = max(a[1] for a in valid_ankles)
+                                            # Validate ankle is within/near bbox
+                                            if x1 - 20 <= avg_ax <= x2 + 20 and y1 <= max_ay <= y2 + 30:
+                                                foot_x = avg_ax
+                                                foot_y = max_ay
+                                                break
+                            except Exception:
+                                pass
 
                         detections.append(Detection(
                             class_id=cls_id,
