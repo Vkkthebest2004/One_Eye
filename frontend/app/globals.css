@@ -3,15 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f9fb;
-  --foreground: #1a1b20;
+  --background: #0d1117;
+  --foreground: #f0f6fc;
 }
 
 body {
-  background-color: #f7f9fb;
-  color: #1a1b20;
+  background-color: #0d1117;
+  color: #f0f6fc;
   overflow-x: hidden;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
 /* Material Symbols Outlined Icon configuration */
@@ -31,15 +33,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Design System Panels */
+/* Industrial Dark Design System Panels */
 .level-1-panel {
-  background-color: #ffffff;
-  border: 1px solid #c4c6d0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background-color: #161b22;
+  border: 1px solid #30363d;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .critical-bloom {
-  box-shadow: 0 0 16px rgba(220, 38, 38, 0.15);
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.25);
   border: 1px solid #dc2626 !important;
 }
 
@@ -57,13 +59,13 @@ body {
 }
 
 .camera-overlay {
-  background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 20%, rgba(255,255,255,0) 80%, rgba(255,255,255,0.8) 100%);
+  background: linear-gradient(180deg, rgba(13, 17, 23, 0.6) 0%, rgba(13, 17, 23, 0) 20%, rgba(13, 17, 23, 0) 80%, rgba(13, 17, 23, 0.7) 100%);
 }
 
 .scan-line {
   width: 100%;
   height: 2px;
-  background-color: rgba(37, 99, 235, 0.25);
+  background-color: rgba(37, 99, 235, 0.35);
   position: absolute;
   animation: scan 4s linear infinite;
   pointer-events: none;
@@ -78,26 +80,53 @@ body {
 }
 
 .grid-bg {
-  background-size: 40px 40px;
-  background-image: linear-gradient(to right, rgba(116, 119, 127, 0.1) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(116, 119, 127, 0.1) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
-/* Custom Scrollbars */
+/* Global Custom Industrial Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f2f4f6;
+  background: #0d1117;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c4c6d0;
-  border-radius: 3px;
+  background: #30363d;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #74777f;
+  background: #58a6ff;
+}
+
+/* Dedicated Scroll Container Utilities */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d #0d1117;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.custom-scrollbar-x {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d #0d1117;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.sliding-scroll-container {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.sliding-scroll-container::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }

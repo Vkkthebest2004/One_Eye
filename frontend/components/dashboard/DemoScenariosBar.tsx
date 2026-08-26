@@ -12,38 +12,38 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
   const scenarios = [
     {
       id: 'missing_helmet',
-      title: '1. PPE Violation',
-      desc: 'Worker #07 missing mandatory hardhat',
+      title: '1. PPE Breach',
+      desc: 'Worker missing mandatory hardhat',
       icon: 'engineering',
-      color: 'hover:border-severity-warning text-severity-warning',
+      color: 'text-severity-warning',
     },
     {
       id: 'restricted_zone',
       title: '2. Zone Breach',
-      desc: 'Worker enters Hydraulic Press danger boundary',
+      desc: 'Worker enters Hydraulic Press boundary',
       icon: 'emergency',
-      color: 'hover:border-severity-warning text-severity-warning',
+      color: 'text-severity-warning',
     },
     {
       id: 'proximity_danger',
-      title: '3. Machine Proximity',
-      desc: 'Worker at 1.1m + Zone + 8.4s exposure (Risk 86)',
+      title: '3. Proximity Danger',
+      desc: '1.1m + Zone + 8.4s dwell (Risk 86)',
       icon: 'warning',
-      color: 'hover:border-severity-critical text-severity-critical',
+      color: 'text-severity-critical',
     },
     {
       id: 'fire_smoke',
       title: '4. Fire / Smoke',
-      desc: 'Thermal flame pattern detected (Risk 95)',
+      desc: 'Thermal flame pattern (Risk 95)',
       icon: 'local_fire_department',
-      color: 'hover:border-severity-critical text-severity-critical',
+      color: 'text-severity-critical',
     },
     {
       id: 'worker_fall',
-      title: '5. Worker Fall',
-      desc: 'Multi-frame posture drop & ground contact',
+      title: '5. Posture Fall',
+      desc: '4-stage drop & ground contact',
       icon: 'person_off',
-      color: 'hover:border-primary text-primary',
+      color: 'text-primary',
     },
   ];
 
@@ -63,18 +63,18 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
   };
 
   return (
-    <div className="level-1-panel rounded-lg p-2.5 flex flex-col gap-2 shadow-sm mb-2">
+    <div className="level-1-panel rounded-lg p-2.5 flex flex-col gap-2 shadow-sm mb-2 shrink-0">
       <div className="flex items-center justify-between">
-        <span className="font-label-mono-bold text-xs uppercase tracking-wider text-on-surface flex items-center gap-1.5">
+        <span className="font-label-mono-bold text-xs uppercase tracking-wider text-on-surface flex items-center gap-1.5 font-bold">
           <span className="material-symbols-outlined text-primary text-sm">science</span>
-          Interactive Demo Hazard Scenarios
+          Interactive Hazard Scenarios
         </span>
-        <span className="font-label-mono text-[10px] text-on-surface-variant">
-          Click any hazard to test real-time risk escalation &amp; alert dispatch
+        <span className="font-label-mono text-[10px] text-on-surface-variant hidden sm:inline">
+          Click scenario to trigger real-time AI risk escalation
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="flex lg:grid lg:grid-cols-5 gap-2 overflow-x-auto sliding-scroll-container pb-0.5">
         {scenarios.map((sc) => {
           const isLoading = activeScenario === sc.id;
           const isTriggered = lastSuccess === sc.id;
@@ -84,14 +84,14 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
               key={sc.id}
               onClick={() => handleTrigger(sc.id)}
               disabled={activeScenario !== null}
-              className={`flex flex-col text-left p-2 rounded bg-surface border border-outline-variant transition-all ${
+              className={`flex flex-col text-left p-2 rounded-lg bg-surface border border-outline-variant transition-all shrink-0 min-w-[180px] lg:min-w-0 active:scale-98 ${
                 isTriggered
                   ? 'ring-1 ring-severity-safe bg-severity-safe/10 border-severity-safe'
                   : 'hover:bg-surface-container'
               }`}
             >
               <div className="flex items-center justify-between w-full mb-0.5">
-                <span className="flex items-center gap-1 font-label-mono-bold text-xs text-on-surface">
+                <span className="flex items-center gap-1 font-label-mono-bold text-xs text-on-surface font-bold">
                   <span className={`material-symbols-outlined text-sm ${sc.color}`}>
                     {sc.icon}
                   </span>
@@ -107,7 +107,7 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
                   </span>
                 ) : null}
               </div>
-              <p className="font-label-mono text-[10px] text-on-surface-variant line-clamp-1">
+              <p className="font-label-mono text-[10px] text-on-surface-variant truncate">
                 {sc.desc}
               </p>
             </button>

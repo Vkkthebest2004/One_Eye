@@ -22,6 +22,7 @@ import {
   getMachines,
   getHealth,
   getAnalyticsSummary,
+  getEvents,
   acknowledgeEvent,
   resolveEvent,
   markFalsePositive,
@@ -38,6 +39,7 @@ export default function DashboardPage() {
   const [selectedEvent, setSelectedEvent] = useState<SafetyEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   // WebSocket Live Hook
   const {
@@ -51,18 +53,24 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [cams, zns, machs, hlth, summ] = await Promise.all([
+      const [cams, zns, machs, hlth, summ, eventsResult] = await Promise.all([
         getCameras(),
         getZones(),
         getMachines(),
         getHealth(),
         getAnalyticsSummary(),
+        getEvents({ limit: 200 }),
       ]);
       setCameras(cams);
       setZones(zns);
       setMachines(machs);
       setHealth(hlth);
       setSummary(summ);
+      const active = eventsResult.events.filter(
+        (event) => event.status === 'ALERTING' || event.status === 'ACKNOWLEDGED'
+      );
+      const priority: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, ADVISORY: 1 };
+      setActiveAlerts(active.sort((a, b) => (priority[b.severity] || 0) - (priority[a.severity] || 0)));
     } catch (e) {
       console.error('Failed to load initial data:', e);
     }
@@ -116,37 +124,39 @@ export default function DashboardPage() {
   const totalTracksCount = Object.values(cameraTracks).reduce((acc, trks) => acc + trks.length, 0);
 
   return (
-    <div className="flex h-screen w-full antialiased grid-bg bg-background text-on-surface">
+    <div className="flex h-screen w-full antialiased grid-bg bg-background text-on-surface overflow-hidden">
       {/* Side Navigation Bar */}
       <SideNavBar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         activeAlertCount={activeAlerts.length}
         demoMode={demoMode}
+        isOpenMobile={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
       {/* Main Content Area */}
-      <main className="md:ml-64 flex-1 flex flex-col h-screen overflow-hidden">
+      <main className="md:ml-64 flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top App Bar */}
         <TopNavBar
           health={health}
           activeAlertCount={activeAlerts.length}
           onSearchChange={setSearchQuery}
           onDemoModeChanged={setDemoMode}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        {/* Scrollable Dashboard View Canvas */}
-        <div className="flex-1 overflow-y-auto p-margin-page flex flex-col gap-4">
-          
+        {/* Scrollable Dashboard View Canvas with Rigid Scroll Bounds */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-5 flex flex-col gap-4 min-h-0 w-full">
           {/* Top Title & Demo Runner Bar */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 shrink-0">
             <div className="flex justify-between items-end">
               <div>
-                <h2 className="font-headline-md text-xl font-bold text-on-surface tracking-tight">
-                  Good morning, Operator
+                <h2 className="font-headline-md text-lg md:text-xl font-bold text-on-surface tracking-tight">
+                  Industrial Safety Command Center
                 </h2>
-                <p className="font-label-mono text-xs text-on-surface-variant uppercase mt-0.5">
-                  Industrial Safety Command Center // Plant Sector 01
+                <p className="font-label-mono text-[11px] text-on-surface-variant uppercase mt-0.5">
+                  Sector 01 // Multi-Camera Hazard Detection Array
                 </p>
               </div>
             </div>
@@ -158,17 +168,19 @@ export default function DashboardPage() {
           </div>
 
           {/* 5 KPI Metric Cards Row */}
-          <KpiRow
-            summary={summary}
-            activeCount={activeAlerts.length}
-            totalTrackedWorkers={totalTracksCount}
-          />
+          <div className="shrink-0">
+            <KpiRow
+              summary={summary}
+              activeCount={activeAlerts.length}
+              totalTrackedWorkers={totalTracksCount}
+            />
+          </div>
 
           {/* Tab 1 & 2: Dashboard / Live Monitoring Array */}
           {(activeTab === 'dashboard' || activeTab === 'monitoring') && (
-            <div className="grid grid-cols-12 gap-gutter min-h-[580px] flex-1">
-              {/* Left: 2x2 Camera Monitoring Array (9 cols) */}
-              <div className="col-span-12 lg:col-span-9 flex flex-col">
+            <div className="grid grid-cols-12 gap-4 flex-1 min-h-0 items-start pb-6">
+              {/* Left: 2x2 Camera Monitoring Array (9 cols on XL, 8 on LG) */}
+              <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col min-w-0 min-h-0">
                 <MonitoringArray
                   cameras={cameras}
                   zones={zones}
@@ -179,8 +191,8 @@ export default function DashboardPage() {
                 />
               </div>
 
-              {/* Right: Live Event Stream & Incident Card (3 cols) */}
-              <div className="col-span-12 lg:col-span-3 flex flex-col">
+              {/* Right: Live Event Stream & Incident Queue (3 cols on XL, 4 on LG) */}
+              <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col min-w-0 min-h-0 lg:sticky lg:top-0 max-h-[calc(100vh-140px)]">
                 <EventStreamSidebar
                   alerts={activeAlerts}
                   onSelectEvent={setSelectedEvent}
@@ -193,45 +205,61 @@ export default function DashboardPage() {
 
           {/* Tab 3: Alerts Center */}
           {activeTab === 'alerts' && (
-            <AlertCenterTab
-              alerts={activeAlerts}
-              onSelectEvent={setSelectedEvent}
-              onAcknowledge={handleAcknowledge}
-              onResolve={handleResolve}
-            />
+            <div className="flex-1 min-h-0 pb-6">
+              <AlertCenterTab
+                alerts={activeAlerts}
+                onSelectEvent={setSelectedEvent}
+                onAcknowledge={handleAcknowledge}
+                onResolve={handleResolve}
+              />
+            </div>
           )}
 
           {/* Tab 4: Events & Audit History */}
           {(activeTab === 'events' || activeTab === 'logs') && (
-            <EventsAuditTab onSelectEvent={setSelectedEvent} />
+            <div className="flex-1 min-h-0 pb-6">
+              <EventsAuditTab onSelectEvent={setSelectedEvent} />
+            </div>
           )}
 
           {/* Tab 5: Safety Map */}
           {activeTab === 'map' && (
-            <SafetyMapTab
-              cameras={cameras}
-              zones={zones}
-              machines={machines}
-              tracks={cameraTracks}
-              alerts={activeAlerts}
-            />
+            <div className="flex-1 min-h-0 pb-6">
+              <SafetyMapTab
+                cameras={cameras}
+                zones={zones}
+                machines={machines}
+                tracks={cameraTracks}
+                alerts={activeAlerts}
+              />
+            </div>
           )}
 
           {/* Tab 6: Analytics */}
-          {activeTab === 'analytics' && <AnalyticsTab />}
+          {activeTab === 'analytics' && (
+            <div className="flex-1 min-h-0 pb-6">
+              <AnalyticsTab />
+            </div>
+          )}
 
           {/* Tab 7: Settings / Cameras / Zones */}
           {(activeTab === 'settings' || activeTab === 'cameras' || activeTab === 'zones') && (
-            <SettingsTab
-              cameras={cameras}
-              zones={zones}
-              machines={machines}
-              onConfigSaved={loadData}
-            />
+            <div className="flex-1 min-h-0 pb-6">
+              <SettingsTab
+                cameras={cameras}
+                zones={zones}
+                machines={machines}
+                onConfigSaved={loadData}
+              />
+            </div>
           )}
 
           {/* Tab 8: Mobile USB Connection */}
-          {activeTab === 'mobile' && <MobileConnectionTab onDeviceConnected={loadData} />}
+          {activeTab === 'mobile' && (
+            <div className="flex-1 min-h-0 pb-6">
+              <MobileConnectionTab onDeviceConnected={loadData} />
+            </div>
+          )}
 
         </div>
       </main>

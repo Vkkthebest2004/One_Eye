@@ -85,37 +85,38 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   };
 
   return (
-    <header className="bg-surface flex justify-between items-center w-full px-margin-page h-14 z-30 border-b border-outline-variant shrink-0">
-      {/* Left: Mobile Menu Button & Platform Title */}
-      <div className="flex items-center gap-3">
+    <header className="bg-surface flex justify-between items-center w-full px-3 md:px-6 h-14 z-30 border-b border-outline-variant shrink-0 max-w-full overflow-hidden">
+      {/* Left: Mobile Menu Trigger & Title */}
+      <div className="flex items-center gap-2.5 shrink-0 min-w-0">
         <button
           onClick={onOpenMobileMenu}
-          className="md:hidden p-1.5 rounded text-on-surface-variant hover:bg-surface-variant"
+          className="md:hidden p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-variant focus:outline-none"
+          title="Open Navigation Menu"
         >
-          <span className="material-symbols-outlined">menu</span>
+          <span className="material-symbols-outlined text-2xl">menu</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span
-            className="material-symbols-outlined text-primary text-xl md:hidden"
+            className="material-symbols-outlined text-primary text-2xl md:hidden shrink-0"
             style={{ fontVariationSettings: "'FILL' 1" }}
           >
             visibility
           </span>
-          <span className="font-label-mono text-xs md:text-sm font-bold text-on-surface uppercase tracking-wider">
-            One_Eye Safety Intelligence
+          <span className="font-headline-md text-xs md:text-sm font-bold text-on-surface uppercase tracking-wider truncate">
+            ONE EYE
           </span>
-          <span className="hidden sm:inline-block text-xs font-mono text-on-surface-variant">
+          <span className="hidden sm:inline-block text-xs font-mono text-on-surface-variant shrink-0">
             // {timeStr}
           </span>
         </div>
       </div>
 
-      {/* Right Controls & Telemetry */}
-      <div className="flex items-center gap-4 lg:gap-6">
-        {/* Global Search Bar */}
-        <div className="relative hidden md:block">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">
+      {/* Right Controls: Sliding Horizontal Scroll Container on smaller viewports */}
+      <div className="flex items-center gap-2 md:gap-4 overflow-x-auto sliding-scroll-container shrink min-w-0 py-1">
+        {/* Global Search Bar (hidden on small mobile) */}
+        <div className="relative hidden lg:block shrink-0">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm pointer-events-none">
             search
           </span>
           <input
@@ -123,7 +124,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             value={searchVal}
             onChange={handleSearch}
             placeholder="Search entity, camera, or zone..."
-            className="bg-surface-container-low border border-outline-variant rounded-full py-1 pl-9 pr-4 font-body-sm text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-56 lg:w-64 transition-all"
+            className="bg-surface-container-low border border-outline-variant rounded-full py-1 pl-9 pr-4 font-body-sm text-xs text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-48 xl:w-60 transition-all"
           />
         </div>
 
@@ -131,18 +132,18 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <button
           onClick={handleToggleAi}
           disabled={isTogglingAi}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-label-mono font-bold border transition-all shadow-sm ${
+          className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-label-mono font-bold border transition-all shadow-sm shrink-0 whitespace-nowrap active:scale-95 ${
             aiEnabled
-              ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/40 hover:bg-emerald-500/25'
-              : 'bg-amber-500/20 text-amber-600 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
+              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25'
+              : 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
           }`}
-          title={aiEnabled ? 'Click to Pause AI Hazard Detection & Alerts (Camera-Only Mode)' : 'Click to Resume AI Hazard Detection & Alerts'}
+          title={aiEnabled ? 'Click to Pause AI Hazard Detection (Camera-Only Mode)' : 'Click to Resume AI Hazard Detection'}
         >
-          <span className={`w-2 h-2 rounded-full ${aiEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className="material-symbols-outlined text-sm">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${aiEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="material-symbols-outlined text-sm shrink-0">
             {aiEnabled ? 'security' : 'pause_circle'}
           </span>
-          <span className="hidden sm:inline">
+          <span className="text-[11px] hidden sm:inline">
             {aiEnabled ? 'AI SCANNING: ON' : 'CAMERA ONLY'}
           </span>
         </button>
@@ -151,63 +152,38 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <button
           onClick={handleToggleDemoMode}
           disabled={isTogglingDemo}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-label-mono font-bold border transition-all shadow-sm ${
+          className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg text-xs font-label-mono font-bold border transition-all shadow-sm shrink-0 whitespace-nowrap active:scale-95 ${
             !demoMode
-              ? 'bg-rose-500/15 text-rose-600 border-rose-500/40 hover:bg-rose-500/25'
-              : 'bg-amber-500/20 text-amber-600 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
+              ? 'bg-rose-500/15 text-rose-400 border-rose-500/40 hover:bg-rose-500/25'
+              : 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
           }`}
           title={demoMode ? 'Switch to LIVE Production Mode (100% real camera feeds)' : 'Switch to Demo Simulation Mode'}
         >
-          <span className={`w-2 h-2 rounded-full ${!demoMode ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
-          <span className="material-symbols-outlined text-sm">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${!demoMode ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className="material-symbols-outlined text-sm shrink-0">
             {!demoMode ? 'videocam' : 'science'}
           </span>
-          <span className="hidden sm:inline">
-            {!demoMode ? 'LIVE MODE (PROD)' : 'DEMO SIMULATION'}
+          <span className="text-[11px] hidden sm:inline">
+            {!demoMode ? 'LIVE MODE (PROD)' : 'DEMO MODE'}
           </span>
         </button>
 
-        {/* System Diagnostics Telemetry Icons */}
-        <div className="flex items-center gap-2">
-          <button
-            title={`CV Engine: ${health?.cv_engine || 'ONLINE'}`}
-            className="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer"
-          >
-            <span className="material-symbols-outlined">memory</span>
-          </button>
-          <button
-            title={`Database: ${health?.database || 'ONLINE'}`}
-            className="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer"
-          >
-            <span className="material-symbols-outlined">database</span>
-          </button>
-          <button
-            title="Active Edge Pipeline Nodes"
-            className="text-on-surface-variant hover:text-primary hover:bg-surface-variant transition-colors p-1.5 rounded-full cursor-pointer"
-          >
-            <span className="material-symbols-outlined">account_tree</span>
-          </button>
+        {/* Active Alerts Pill */}
+        <div className="px-2.5 py-1 bg-error-container/30 border border-error/50 rounded-lg flex items-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap">
+          <div className="w-2 h-2 rounded-full bg-error animate-pulse shrink-0" />
+          <span className="font-label-mono-bold text-xs text-error font-bold">
+            {activeAlertCount} ACTIVE
+          </span>
         </div>
 
-        <div className="h-6 w-px bg-outline-variant" />
-
-        {/* Active Alerts Pill & Operator Avatar */}
-        <div className="flex items-center gap-3">
-          <div className="px-2.5 py-0.5 bg-error-container border border-error rounded flex items-center gap-1.5 shadow-sm">
-            <div className="w-2 h-2 rounded-full bg-error animate-pulse" />
-            <span className="font-label-mono-bold text-xs text-error">
-              {activeAlertCount} ACTIVE
-            </span>
+        {/* Operator Badge */}
+        <div className="flex items-center gap-2 shrink-0 pl-1">
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/15 border border-primary/40 flex items-center justify-center text-primary font-bold font-mono text-xs shrink-0">
+            OP
           </div>
-
-          <div className="flex items-center gap-2 cursor-pointer group">
-            <div className="w-8 h-8 rounded bg-primary/10 border border-outline-variant flex items-center justify-center text-primary font-bold font-mono text-xs">
-              OP
-            </div>
-            <div className="hidden lg:flex flex-col text-left">
-              <span className="font-label-mono-bold text-xs text-on-surface leading-tight">Operator</span>
-              <span className="text-[10px] text-on-surface-variant leading-tight">Shift A-1</span>
-            </div>
+          <div className="hidden xl:flex flex-col text-left">
+            <span className="font-label-mono-bold text-xs text-on-surface leading-tight font-bold">Operator</span>
+            <span className="text-[10px] text-on-surface-variant leading-tight">Shift A-1</span>
           </div>
         </div>
       </div>
