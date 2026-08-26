@@ -6,6 +6,11 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ## Milestone Log
 
+- **Commit `32ae3ca`**: `feat(zones): implement precise coordinate-based fixed danger zone system with DANGER_ZONE_REACHED alerts`
+  - Built precision coordinate-based fixed danger zone system with real-time vertex coordinates table ($P_1, P_2, \dots$), 2-click box mode, and multi-point polygon drawer.
+  - Locked danger perimeter to fixed normalized $(X, Y)$ coordinates ($0.0000 - 1.0000$).
+  - Configured `DANGER_ZONE_REACHED` alert trigger: only fires when a person's physical foot contact point enters the marked coordinate perimeter.
+
 - **Commit `771a369`**: `feat(qwen-vl): enable all-object perception and dynamic hazard zone bounding`
   - Upgraded Qwen2-VL visual prompt and spatial grounding to detect all industrial entities: workers (`PERSON`), dangerous equipment (`MACHINE`), mobile equipment (`VEHICLE`), environmental hazards (`HAZARD_OBJECT`), and restricted areas (`DANGER_ZONE`).
   - Added automatic danger perimeter bounding: when hazardous machinery or danger zones are recognized, the system dynamically generates safety perimeters and tracks worker contact breaches.
