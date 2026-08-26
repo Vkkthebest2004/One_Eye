@@ -8,6 +8,7 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`5dbae5e`** | `cv` | Integrate Qwen2-VL perception engine with hot-switching and precision person filtering |
 | **`7b0d2bf`** | `mobile` | Continuous auto-scan by default & unauthorized device badge detection |
 | **`f77475c`** | `mobile-cam` | Progressive constraint cascade for rear & front sensors without OverconstrainedError |
 | **`4bc40d1`** | `release` | Complete release build, tests, and configuration sync |
