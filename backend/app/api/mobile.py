@@ -418,6 +418,10 @@ async def mobile_stream_ws(websocket: WebSocket, camera_id: str = "CAM_MOBILE"):
                 mobile_manager.update_web_frame(camera_id, frame)
                 mobile_manager.update_web_frame("CAM_MOB_24151JEG", frame)
                 mobile_manager.update_web_frame("CAM_MOBILE", frame)
+                mobile_manager.update_web_frame("24151JEGR16946", frame)
+                for dev_serial in list(mobile_manager.devices.keys()):
+                    mobile_manager.update_web_frame(dev_serial, frame)
+                    mobile_manager.update_web_frame(f"CAM_MOB_{dev_serial[:8].upper()}", frame)
     except WebSocketDisconnect:
         logger.info(f"Mobile web camera disconnected: {camera_id}")
     except Exception as e:

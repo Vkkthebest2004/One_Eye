@@ -26,25 +26,32 @@ export default function MobileCamPage() {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
 
-      const resConstraints =
-        quality === '1080p'
-          ? { width: { ideal: 1920 }, height: { ideal: 1080 } }
-          : quality === '720p'
-          ? { width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { width: { ideal: 640 }, height: { ideal: 480 } };
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: mode,
-          ...resConstraints,
-        },
-        audio: false,
-      });
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch (e) {
+        // Fallback to simple unconstrained video
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
 
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          // Handled by autoPlay attribute
+        }
       }
 
       // Check for torch capability
@@ -52,7 +59,7 @@ export default function MobileCamPage() {
       const capabilities: any = track.getCapabilities ? track.getCapabilities() : {};
       setHasTorch(!!capabilities.torch);
 
-      setStatusMsg('Camera connected. Connecting to ONE EYE AI pipeline...');
+      setStatusMsg('Camera connected. Streaming to ONE EYE AI pipeline...');
       connectWebSocket();
     } catch (err: any) {
       console.error('Camera access error:', err);
@@ -78,11 +85,8 @@ export default function MobileCamPage() {
   const connectWebSocket = () => {
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
-      const configuredWs = process.env.NEXT_PUBLIC_WS_URL;
-      const wsBase = configuredWs
-        ? configuredWs.replace(/\/ws(?:\/events)?$/, '')
-        : `ws://${window.location.hostname || 'localhost'}:8001`;
-      const wsUrl = `${wsBase}/api/mobile/ws/stream/CAM_MOBILE`;
+      const host = window.location.hostname || 'localhost';
+      const wsUrl = `ws://${host}:8001/api/mobile/ws/stream/CAM_MOBILE`;
 
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';

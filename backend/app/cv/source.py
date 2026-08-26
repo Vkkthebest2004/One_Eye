@@ -119,35 +119,34 @@ class CameraSource:
         """
         now = time.time()
 
-        if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web"):
+        if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web" or self.actual_source.startswith("mobile:")):
             from app.cv.usb_mobile import mobile_manager
-            web_res = mobile_manager.get_web_frame(self.camera_id)
+            # Universal lookup across all mobile aliases and device serials
+            serial_part = self.actual_source.split(":", 1)[1] if ":" in self.actual_source else ""
+            web_res = (
+                mobile_manager.get_web_frame(self.camera_id)
+                or mobile_manager.get_web_frame("CAM_MOBILE")
+                or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+                or (mobile_manager.get_web_frame(serial_part) if serial_part else None)
+            )
             if web_res:
                 frame, ts = web_res
                 self.frame_count += 1
                 self.last_frame_time = ts
+                self.connected = True
                 return True, frame, ts
-            return False, None, now
 
-        if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
-            serial = self.actual_source.split(":", 1)[1]
-            from app.cv.usb_mobile import mobile_manager
-            mob_src = mobile_manager.get_source(serial)
-            if not mob_src or not mob_src.is_alive():
-                # Apply 4-second reconnect cooldown to prevent rapid camera hammering
-                if (now - self._last_reconnect_attempt) < 4.0:
-                    return False, None, now
-                self._last_reconnect_attempt = now
-                if not self.connect():
-                    return False, None, now
-                mob_src = mobile_manager.get_source(serial)
-                if not mob_src:
-                    return False, None, now
-            ok, frame, ts = mob_src.read()
-            if ok:
-                self.frame_count += 1
-                self.last_frame_time = ts
-            return ok, frame, ts
+            if serial_part:
+                mob_src = mobile_manager.get_source(serial_part)
+                if mob_src:
+                    ok, frame, ts = mob_src.read()
+                    if ok:
+                        self.frame_count += 1
+                        self.last_frame_time = ts
+                        self.connected = True
+                        return ok, frame, ts
+
+            return False, None, now
 
         if not self.connected or self.cap is None:
             if (now - self._last_reconnect_attempt) < 4.0:
