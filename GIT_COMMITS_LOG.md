@@ -6,6 +6,9 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ## Milestone Log
 
+- **Commit `7f43ef4`**: `fix(cameras): add missing cv2 and Response imports for live snapshots`
+  - Fixed live snapshot freeze endpoint `GET /api/cameras/{id}/snapshot` with high-quality JPEG rendering for coordinate danger zone configuration.
+
 - **Commit `7ed025a`**: `feat(pose): integrate YOLOv8-pose keypoint ankle ground localization and Euclidean distance tracking`
   - Integrated `yolov8n-pose.pt` keypoint estimation to extract human ankle joints (COCO kpt 15 & 16) for ground-truth millimeter-accurate foot contact coordinate determination.
   - Added mathematical Euclidean polygon distance calculation with Shapely geometry to compute sub-pixel proximity to danger zones.
