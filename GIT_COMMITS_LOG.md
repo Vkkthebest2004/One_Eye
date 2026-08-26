@@ -4,10 +4,19 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ---
 
+## Milestone Log
+
+- **Commit `1da1b30`**: `fix(zones): resolve danger zone false breaches with strict foot ground-anchor intersection and mobile dynamic deactivation`
+  - Fixed root cause of false danger zone breaches: replaced full bounding-box intersection with strict ground-contact foot anchor point-in-polygon verification.
+  - Eliminated phantom static screen overlays on mobile feeds: all mobile zones are strictly dynamic and only activate when RANSAC homography matches the physical keyframe (`is_visible == True`).
+  - Upgraded `QwenReasoner` to generate rich, contextual ambiguity descriptions explaining worker clearance, posture, and required corrective actions.
+  - Cleaned up stale database test zones from `oneeye.db`.
+
 ## 📌 Commit Log Table
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`1da1b30`** | `zones` | Resolve danger zone false breaches with strict foot ground-anchor intersection |
 | **`5dbae5e`** | `cv` | Integrate Qwen2-VL perception engine with hot-switching and precision person filtering |
 | **`001497f`** | `perception` | Set Qwen2-VL as permanent default vision engine with high-throughput processing |
 | **`7b0d2bf`** | `mobile` | Continuous auto-scan by default & unauthorized device badge detection |
