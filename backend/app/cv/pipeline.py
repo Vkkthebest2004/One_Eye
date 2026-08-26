@@ -212,18 +212,22 @@ class CameraPipeline:
         # 3.5. Visual Danger Memory & Dynamic Homography Tracking
         tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
         for tvz in tracked_visual_zones:
-            active_poly = tvz.polygon_norm if (tvz.is_visible and len(tvz.polygon_norm) >= 3) else tvz.reference_polygon_norm
-            if len(active_poly) >= 3:
+            if tvz.is_visible and len(tvz.polygon_norm) >= 3:
+                # The physical object is recognized in current camera frame -> Lock zone to object
                 self.zone_engine.register_zone(
                     ZoneDefinition(
                         id=tvz.zone_id,
                         name=tvz.name,
                         camera_id=self.camera_id,
-                        polygon_points=active_poly,
+                        polygon_points=tvz.polygon_norm,
                         severity=tvz.severity,
                         active=True,
                     )
                 )
+            else:
+                # The physical object is OUT OF VIEW -> Deactivate zone to prevent false alarms
+                if tvz.zone_id in self.zone_engine.zones:
+                    self.zone_engine.zones[tvz.zone_id].active = False
 
         # 4. Worker-Level Spatial, Temporal, and Risk Analysis
         for track in active_tracks:

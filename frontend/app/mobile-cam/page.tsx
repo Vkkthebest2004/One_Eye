@@ -399,6 +399,7 @@ export default function MobileCamPage() {
     }
     try {
       const zoneId = `ZONE_MOB_${Date.now().toString().slice(-6)}`;
+      const keyframeB64 = markerCanvasRef.current ? markerCanvasRef.current.toDataURL('image/jpeg', 0.85) : undefined;
       await createZone({
         id: zoneId,
         camera_id: 'CAM_MOBILE',
@@ -408,7 +409,8 @@ export default function MobileCamPage() {
         warning_delay_seconds: 0.0,
         critical_delay_seconds: 3.0,
         active: true,
-      });
+        keyframe_b64: keyframeB64,
+      } as any);
       setMarkerSavedMsg('✅ Saved to Visual Memory! Homography Tracking Active.');
       setTimeout(() => {
         setIsMarkingDanger(false);
@@ -436,6 +438,8 @@ export default function MobileCamPage() {
     // 1. Draw dynamically tracked visual danger zones on the phone
     const zones = visualZones['CAM_MOBILE'] || visualZones['CAM_MOB_24151JEG'] || [];
     zones.forEach((z: any) => {
+      // ONLY draw if the object is ACTUALLY recognized in view!
+      if (!z.is_visible) return;
       const poly = z.polygon || [];
       if (!poly || poly.length < 3) return;
 

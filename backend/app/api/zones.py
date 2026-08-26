@@ -46,14 +46,29 @@ async def create_zone(payload: ZoneCreate, db: AsyncSession = Depends(get_db)):
     )
     created = await repo.create(zone)
 
-    # Register into Visual Memory Engine if live frame is available
-    pipe = pipeline_manager.get_pipeline(payload.camera_id)
-    frame = pipe.latest_frame if pipe else None
-    if frame is None and (payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE"):
-        from app.cv.usb_mobile import mobile_manager
-        web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
-        if web_res:
-            frame = web_res[0]
+    # Register into Visual Memory Engine
+    frame = None
+    if payload.keyframe_b64:
+        try:
+            import base64
+            import numpy as np
+            import cv2
+            b64_str = payload.keyframe_b64
+            if "," in b64_str:
+                b64_str = b64_str.split(",", 1)[1]
+            img_bytes = base64.b64decode(b64_str)
+            frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+        except Exception as e:
+            logger.warning(f"Could not decode keyframe_b64: {e}")
+
+    if frame is None:
+        pipe = pipeline_manager.get_pipeline(payload.camera_id)
+        frame = pipe.latest_frame if pipe else None
+        if frame is None and (payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE"):
+            from app.cv.usb_mobile import mobile_manager
+            web_res = mobile_manager.get_web_frame("CAM_MOBILE") or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+            if web_res:
+                frame = web_res[0]
 
     if frame is not None:
         visual_memory_engine.register_anchor(

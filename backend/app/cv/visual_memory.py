@@ -216,7 +216,7 @@ class VisualMemoryEngine:
             for m_tuple in matches:
                 if len(m_tuple) == 2:
                     m, n = m_tuple
-                    if m.distance < 0.78 * n.distance:
+                    if m.distance < 0.75 * n.distance:
                         good_matches.append(m)
 
             # Minimum inliers required to estimate a robust 3x3 homography matrix
@@ -225,58 +225,66 @@ class VisualMemoryEngine:
                 src_pts = np.float32([anchor.keypoints[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
                 dst_pts = np.float32([kp_live[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
-                H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+                H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 4.0)
                 inliers = np.sum(mask) if mask is not None else 0
 
-                if H is not None and inliers >= 6:
-                    # Validate homography (check determinant and positive area)
+                if H is not None and inliers >= 8:
+                    # Validate homography (check determinant and perspective distortion)
                     det = np.linalg.det(H[:2, :2])
-                    if det > 0.05 and det < 20.0:
+                    if det > 0.08 and det < 12.0:
                         # Transform reference polygon points into live frame space
                         ref_pts = np.float32(anchor.reference_polygon_px).reshape(-1, 1, 2)
                         projected_pts = cv2.perspectiveTransform(ref_pts, H)
                         
-                        live_px = []
-                        live_norm = []
-                        for pt in projected_pts:
-                            px = float(pt[0][0])
-                            py = float(pt[0][1])
-                            live_px.append([int(px), int(py)])
-                            live_norm.append([
-                                min(1.0, max(0.0, round(px / w_live, 4))),
-                                min(1.0, max(0.0, round(py / h_live, 4)))
-                            ])
+                        # Geometric sanity checks on projected polygon
+                        poly_int = np.int32(projected_pts)
+                        if cv2.isContourConvex(poly_int):
+                            area = cv2.contourArea(poly_int)
+                            frame_area = float(w_live * h_live)
+                            if 0.002 * frame_area <= area <= 0.95 * frame_area:
+                                live_px = []
+                                live_norm = []
+                                for pt in projected_pts:
+                                    px = float(pt[0][0])
+                                    py = float(pt[0][1])
+                                    live_px.append([int(px), int(py)])
+                                    live_norm.append([
+                                        round(px / w_live, 4),
+                                        round(py / h_live, 4)
+                                    ])
 
-                        # Temporal smoothing: store H
-                        self._last_homography[anchor.zone_id] = H
-                        confidence = min(1.0, round(inliers / max(1, len(good_matches)), 2))
-                        
-                        tracked = TrackedVisualZone(
-                            zone_id=anchor.zone_id,
-                            camera_id=camera_id,
-                            name=anchor.name,
-                            polygon_norm=live_norm,
-                            polygon_px=live_px,
-                            reference_polygon_norm=anchor.reference_polygon_norm,
-                            severity=anchor.severity,
-                            is_visible=True,
-                            match_confidence=confidence,
-                            inlier_count=int(inliers)
-                        )
-                        self._last_tracked[anchor.zone_id] = tracked
-                        results.append(tracked)
-                        continue
+                                # Verify that polygon center is in or near frame
+                                avg_x = sum(p[0] for p in live_norm) / len(live_norm)
+                                avg_y = sum(p[1] for p in live_norm) / len(live_norm)
+                                if -0.15 <= avg_x <= 1.15 and -0.15 <= avg_y <= 1.15:
+                                    confidence = min(1.0, round(inliers / max(1, len(good_matches)), 2))
+                                    tracked = TrackedVisualZone(
+                                        zone_id=anchor.zone_id,
+                                        camera_id=camera_id,
+                                        name=anchor.name,
+                                        polygon_norm=live_norm,
+                                        polygon_px=live_px,
+                                        reference_polygon_norm=anchor.reference_polygon_norm,
+                                        severity=anchor.severity,
+                                        is_visible=True,
+                                        match_confidence=confidence,
+                                        inlier_count=int(inliers)
+                                    )
+                                    self._last_tracked[anchor.zone_id] = tracked
+                                    results.append(tracked)
+                                    continue
 
-            # Resilient Fallback: Always return reference polygon with is_visible=True so zone stays active
+            # Object is NOT in view (camera is pointed away or looking at another place)
+            # is_visible=False ensures no permanent marker on screen and no false alarms
             results.append(TrackedVisualZone(
                 zone_id=anchor.zone_id,
                 camera_id=camera_id,
                 name=anchor.name,
-                polygon_norm=anchor.reference_polygon_norm,
-                polygon_px=anchor.reference_polygon_px,
+                polygon_norm=[],
+                polygon_px=[],
                 reference_polygon_norm=anchor.reference_polygon_norm,
                 severity=anchor.severity,
-                is_visible=True,
+                is_visible=False,
                 match_confidence=round(len(good_matches) / 50.0, 2),
                 inlier_count=len(good_matches)
             ))

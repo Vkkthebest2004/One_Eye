@@ -1,5 +1,5 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 import datetime
 
 
@@ -40,10 +40,43 @@ class ZoneBase(BaseModel):
     severity: int = Field(default=80, ge=0, le=100)
     allowed_classes: List[str] = Field(default_factory=list)
     active: bool = Field(default=True)
+    zone_type: Literal["NO_ENTRY"] = Field(default="NO_ENTRY")
+    warning_delay_seconds: float = Field(default=2.0, ge=0.0, le=300.0)
+    critical_delay_seconds: float = Field(default=8.0, ge=0.0, le=600.0)
+    voice_alert_enabled: bool = Field(default=True)
+    siren_enabled: bool = Field(default=False)
+    supervisor_alert_enabled: bool = Field(default=False)
+
+    @field_validator("polygon")
+    @classmethod
+    def polygon_must_be_valid(cls, polygon: List[List[float]]):
+        if len(polygon) < 3 or any(len(point) != 2 for point in polygon):
+            raise ValueError("A zone polygon requires at least three [x, y] points")
+        return polygon
+
+    @model_validator(mode="after")
+    def escalation_order_must_be_valid(self):
+        if self.critical_delay_seconds < self.warning_delay_seconds:
+            raise ValueError("critical_delay_seconds must be greater than or equal to warning_delay_seconds")
+        return self
 
 
 class ZoneCreate(ZoneBase):
-    pass
+    keyframe_b64: Optional[str] = None
+
+
+class ZoneUpdate(BaseModel):
+    name: Optional[str] = None
+    polygon: Optional[List[List[float]]] = None
+    severity: Optional[int] = Field(default=None, ge=0, le=100)
+    allowed_classes: Optional[List[str]] = None
+    active: Optional[bool] = None
+    zone_type: Optional[Literal["NO_ENTRY"]] = None
+    warning_delay_seconds: Optional[float] = Field(default=None, ge=0.0, le=300.0)
+    critical_delay_seconds: Optional[float] = Field(default=None, ge=0.0, le=600.0)
+    voice_alert_enabled: Optional[bool] = None
+    siren_enabled: Optional[bool] = None
+    supervisor_alert_enabled: Optional[bool] = None
 
 
 class ZoneResponse(ZoneBase):
@@ -75,6 +108,7 @@ class SafetyEventResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     camera_id: str
+    zone_id: Optional[str] = None
     worker_id: int
     hazard_types: List[str]
     primary_hazard: str

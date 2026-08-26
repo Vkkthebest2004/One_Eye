@@ -48,10 +48,17 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
       camZones.forEach((z) => {
         // Check if dynamic homography tracking is active for this zone
         const tracked = dynVisualZones.find((vz: any) => vz.zone_id === z.id);
-        if (tracked && !tracked.is_visible) {
-          // Object is out of camera view — culling prevents false alarms
+        const isMobileCam = cam.source_type === 'mobile' || cam.id.startsWith('CAM_MOB');
+        
+        if (isMobileCam) {
+          // For mobile cameras, ONLY render if the visual anchor is currently recognized in view
+          if (!tracked || !tracked.is_visible) {
+            return;
+          }
+        } else if (tracked && !tracked.is_visible) {
           return;
         }
+
         const poly = (tracked && tracked.polygon && tracked.polygon.length >= 3) ? tracked.polygon : (z.polygon || []);
         if (!poly || poly.length < 3) return;
 
