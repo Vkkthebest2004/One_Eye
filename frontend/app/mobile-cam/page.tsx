@@ -49,41 +49,10 @@ export default function MobileCamPage() {
     }
   };
 
-  const getCameraConstraints = async (mode: 'environment' | 'user'): Promise<MediaStreamConstraints> => {
+  // Start Camera Stream (Progressive Lens Cascade for Rear & Front Sensors)
+  const startCamera = async (target?: string) => {
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-
-      // If devices have labels, find the matching hardware camera
-      if (videoInputs.length > 0 && videoInputs[0].label) {
-        const match = videoInputs.find((d) => {
-          const l = d.label.toLowerCase();
-          if (mode === 'environment') {
-            return l.includes('back') || l.includes('rear') || l.includes('0') || l.includes('environment');
-          } else {
-            return l.includes('front') || l.includes('user') || l.includes('selfie') || l.includes('1');
-          }
-        });
-        if (match && match.deviceId) {
-          return {
-            video: { deviceId: { exact: match.deviceId } },
-            audio: false,
-          };
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    return {
-      video: { facingMode: { ideal: mode } },
-      audio: false,
-    };
-  };
-
-  // Start Camera Stream (Direct Lens Switching by DeviceId or FacingMode)
-  const startCamera = async (target: string) => {
-    try {
+      // 1. Release previous camera hardware cleanly
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => {
           try {
@@ -91,42 +60,57 @@ export default function MobileCamPage() {
           } catch (e) {}
         });
         streamRef.current = null;
-        // Allow hardware sensor 50ms to release cleanly
-        await new Promise((r) => setTimeout(r, 50));
+        // Allow hardware sensor 80ms to release cleanly on mobile OS
+        await new Promise((r) => setTimeout(r, 80));
       }
 
       const mode: 'environment' | 'user' = target === 'user' ? 'user' : 'environment';
-      let constraints: MediaStreamConstraints = await getCameraConstraints(mode);
+      const isSpecificDevice = target && target.length > 20 && target !== 'user' && target !== 'environment';
 
-      if (target && target.length > 20) {
-        constraints = {
-          video: { deviceId: { exact: target }, width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        };
+      // 2. Ordered list of constraint strategies to guarantee rear/front selection without OverconstrainedError
+      const candidateConstraints: MediaStreamConstraints[] = [];
+
+      if (isSpecificDevice) {
+        candidateConstraints.push(
+          { video: { deviceId: { ideal: target }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { deviceId: { exact: target } }, audio: false }
+        );
       }
 
+      if (mode === 'environment') {
+        candidateConstraints.push(
+          { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: 'environment' }, audio: false }
+        );
+      } else {
+        candidateConstraints.push(
+          { video: { facingMode: { exact: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { facingMode: 'user' }, audio: false }
+        );
+      }
+
+      // Universal fallbacks
+      candidateConstraints.push(
+        { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        { video: true, audio: false }
+      );
+
       let stream: MediaStream | null = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-      } catch (e1) {
+      let lastErr: any = null;
+
+      for (const constraints of candidateConstraints) {
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
-            audio: false,
-          });
-        } catch (e2) {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: mode },
-              audio: false,
-            });
-          } catch (e3) {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
-          }
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (e) {
+          lastErr = e;
         }
+      }
+
+      if (!stream) {
+        throw lastErr || new Error('Unable to access camera sensor');
       }
 
       streamRef.current = stream;
@@ -143,18 +127,19 @@ export default function MobileCamPage() {
       }
 
       // Update discovered devices & active label
-      const inputs = await refreshDevices();
+      await refreshDevices();
       const currentTrack = stream.getVideoTracks()[0];
-      const activeLabel = currentTrack?.label || (target === 'user' ? 'Front Selfie Camera' : 'Back Rear Camera');
+      const settings = currentTrack?.getSettings ? currentTrack.getSettings() : {};
+      const activeLabel = currentTrack?.label || (mode === 'user' ? 'Front Selfie Camera' : 'Back Rear Camera (Wide)');
 
       const isBack =
+        settings.facingMode === 'environment' ||
         activeLabel.toLowerCase().includes('back') ||
         activeLabel.toLowerCase().includes('rear') ||
-        activeLabel.toLowerCase().includes('0') ||
         mode === 'environment';
 
       setFacingMode(isBack ? 'environment' : 'user');
-      setSelectedDeviceId(currentTrack?.getSettings()?.deviceId || '');
+      setSelectedDeviceId(settings.deviceId || '');
 
       // Check for torch capability
       const capabilities: any = currentTrack?.getCapabilities ? currentTrack.getCapabilities() : {};
@@ -318,18 +303,8 @@ export default function MobileCamPage() {
   }, []);
 
   const toggleCamera = async () => {
-    const inputs = await refreshDevices();
-    if (inputs.length >= 2) {
-      const currentTrack = streamRef.current?.getVideoTracks()[0];
-      const currentDeviceId = currentTrack?.getSettings()?.deviceId;
-      const nextDev = inputs.find((d) => d.deviceId !== currentDeviceId) || inputs[0];
-      if (nextDev) {
-        startCamera(nextDev.deviceId);
-        return;
-      }
-    }
     const nextMode = facingMode === 'environment' ? 'user' : 'environment';
-    startCamera(nextMode);
+    await startCamera(nextMode);
   };
 
   const toggleTorch = async () => {
