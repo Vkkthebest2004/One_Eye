@@ -6,6 +6,10 @@ This document tracks all version-controlled milestones in the repository. If you
 
 ## Milestone Log
 
+- **Commit `771a369`**: `feat(qwen-vl): enable all-object perception and dynamic hazard zone bounding`
+  - Upgraded Qwen2-VL visual prompt and spatial grounding to detect all industrial entities: workers (`PERSON`), dangerous equipment (`MACHINE`), mobile equipment (`VEHICLE`), environmental hazards (`HAZARD_OBJECT`), and restricted areas (`DANGER_ZONE`).
+  - Added automatic danger perimeter bounding: when hazardous machinery or danger zones are recognized, the system dynamically generates safety perimeters and tracks worker contact breaches.
+
 - **Commit `44cbc34`**: `perf(cv): unlock 30 FPS inference by removing global serial lock and optimizing frame interval`
   - Unlocked 25–30+ FPS real-time surveillance by eliminating the global inference lock across camera channels.
   - Enabled concurrent asynchronous thread execution for YOLOv8s and Qwen2-VL inference.
