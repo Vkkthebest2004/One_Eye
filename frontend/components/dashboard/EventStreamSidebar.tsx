@@ -35,9 +35,9 @@ export const EventStreamSidebar: React.FC<EventStreamSidebarProps> = ({
     <div className="flex flex-col h-[600px] lg:h-[calc(100vh-210px)] max-h-[calc(100vh-210px)] min-h-[480px] w-full">
       {/* Header (Fixed) */}
       <div className="flex justify-between items-center mb-2 px-1 shrink-0">
-        <h3 className="font-label-mono text-xs font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2">
+        <h3 className="font-label-mono text-xs font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2 font-bold">
           <span className="material-symbols-outlined text-sm text-primary">receipt_long</span>
-          Active Safety Queue
+          Active Hazards &amp; Incident Queue
         </h3>
         <span className={`font-label-mono text-[10px] px-2 py-0.5 rounded font-bold ${
           alerts.length > 0

@@ -261,12 +261,12 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
         <div className="flex items-center gap-2">
           <h3 className="font-label-mono text-xs font-bold text-on-surface-variant uppercase tracking-widest flex items-center gap-2 font-bold">
             <span className={`w-2 h-2 rounded-full ${allStreamsPaused ? 'bg-amber-500' : 'bg-severity-safe animate-pulse'}`} />
-            Live AI Perception Array ({filteredCameras.length} Feeds)
+            Live Video Surveillance &amp; AI Detection ({filteredCameras.length} Feeds)
           </h3>
           {cameras.some((c) => c.source_type === 'mobile' || c.source.startsWith('mobile')) && (
             <span className="px-2 py-0.5 rounded bg-blue-600/10 text-blue-600 border border-blue-500/30 text-[10px] font-mono font-bold flex items-center gap-1">
               <span className="material-symbols-outlined text-[12px]">smartphone</span>
-              MOBILE CAMERA
+              MOBILE PHONE CAMERA
             </span>
           )}
         </div>
@@ -278,12 +278,12 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
                 ? 'bg-amber-500/20 text-amber-500 border-amber-500/50 hover:bg-amber-500/30'
                 : 'bg-surface border-outline-variant text-on-surface hover:border-amber-500 hover:text-amber-500'
             }`}
-            title={allStreamsPaused ? 'Click to Resume All Camera Feeds' : 'Click to Pause / Freeze All Camera Feeds'}
+            title={allStreamsPaused ? 'Click to Resume All Camera Feeds' : 'Click to Freeze / Pause All Camera Feeds'}
           >
             <span className="material-symbols-outlined text-sm">
               {allStreamsPaused ? 'play_arrow' : 'pause'}
             </span>
-            {allStreamsPaused ? 'RESUME ALL' : 'PAUSE ALL'}
+            {allStreamsPaused ? 'RESUME FEEDS' : 'FREEZE FEEDS'}
           </button>
 
           <button
@@ -291,30 +291,30 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
             className={`px-2.5 py-1 rounded text-xs font-label-mono shadow-sm transition-all ${
               activeFilter === 'all'
                 ? 'bg-primary text-white font-bold'
-                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary'
+                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary font-bold'
             }`}
           >
-            ALL ({cameras.length})
+            All Feeds ({cameras.length})
           </button>
           <button
             onClick={() => setActiveFilter('mobile')}
             className={`px-2.5 py-1 rounded text-xs font-label-mono shadow-sm transition-all ${
               activeFilter === 'mobile'
                 ? 'bg-primary text-white font-bold'
-                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary'
+                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary font-bold'
             }`}
           >
-            📱 MOBILE ({cameras.filter((c) => c.source_type === 'mobile' || c.source.startsWith('mobile')).length})
+            📱 Mobile Phones ({cameras.filter((c) => c.source_type === 'mobile' || c.source.startsWith('mobile')).length})
           </button>
           <button
             onClick={() => setActiveFilter('cctv')}
             className={`px-2.5 py-1 rounded text-xs font-label-mono shadow-sm transition-all ${
               activeFilter === 'cctv'
                 ? 'bg-primary text-white font-bold'
-                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary'
+                : 'bg-surface border border-outline-variant text-on-surface hover:border-primary font-bold'
             }`}
           >
-            CCTV ({cameras.filter((c) => c.source_type !== 'mobile' && !c.source.startsWith('mobile')).length})
+            Fixed CCTV ({cameras.filter((c) => c.source_type !== 'mobile' && !c.source.startsWith('mobile')).length})
           </button>
         </div>
       </div>

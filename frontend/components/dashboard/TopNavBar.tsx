@@ -137,14 +137,14 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
               ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25'
               : 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
           }`}
-          title={aiEnabled ? 'Click to Pause AI Hazard Detection (Camera-Only Mode)' : 'Click to Resume AI Hazard Detection'}
+          title={aiEnabled ? 'Click to Pause AI Vision Hazard Detection' : 'Click to Resume AI Vision Hazard Detection'}
         >
           <span className={`w-2 h-2 rounded-full shrink-0 ${aiEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
           <span className="material-symbols-outlined text-sm shrink-0">
             {aiEnabled ? 'security' : 'pause_circle'}
           </span>
           <span className="text-[11px] hidden sm:inline">
-            {aiEnabled ? 'AI SCANNING: ON' : 'CAMERA ONLY'}
+            {aiEnabled ? 'AI DETECTION: ACTIVE' : 'AI PAUSED (VIEW ONLY)'}
           </span>
         </button>
 
@@ -157,14 +157,14 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
               ? 'bg-rose-500/15 text-rose-400 border-rose-500/40 hover:bg-rose-500/25'
               : 'bg-amber-500/20 text-amber-400 border-amber-500/50 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
           }`}
-          title={demoMode ? 'Switch to LIVE Production Mode (100% real camera feeds)' : 'Switch to Demo Simulation Mode'}
+          title={demoMode ? 'Switch to Real Camera Feeds (Production Mode)' : 'Switch to Scenario Simulation Mode'}
         >
           <span className={`w-2 h-2 rounded-full shrink-0 ${!demoMode ? 'bg-rose-500 animate-pulse' : 'bg-amber-500'}`} />
           <span className="material-symbols-outlined text-sm shrink-0">
             {!demoMode ? 'videocam' : 'science'}
           </span>
           <span className="text-[11px] hidden sm:inline">
-            {!demoMode ? 'LIVE MODE (PROD)' : 'DEMO MODE'}
+            {!demoMode ? 'LIVE PRODUCTION' : 'SIMULATION MODE'}
           </span>
         </button>
 
@@ -172,18 +172,18 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         <div className="px-2.5 py-1 bg-error-container/30 border border-error/50 rounded-lg flex items-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap">
           <div className="w-2 h-2 rounded-full bg-error animate-pulse shrink-0" />
           <span className="font-label-mono-bold text-xs text-error font-bold">
-            {activeAlertCount} ACTIVE
+            {activeAlertCount} {activeAlertCount === 1 ? 'ACTIVE HAZARD' : 'ACTIVE HAZARDS'}
           </span>
         </div>
 
         {/* Operator Badge */}
         <div className="flex items-center gap-2 shrink-0 pl-1">
           <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-primary/15 border border-primary/40 flex items-center justify-center text-primary font-bold font-mono text-xs shrink-0">
-            OP
+            SO
           </div>
           <div className="hidden xl:flex flex-col text-left">
-            <span className="font-label-mono-bold text-xs text-on-surface leading-tight font-bold">Operator</span>
-            <span className="text-[10px] text-on-surface-variant leading-tight">Shift A-1</span>
+            <span className="font-label-mono-bold text-xs text-on-surface leading-tight font-bold">Safety Officer</span>
+            <span className="text-[10px] text-on-surface-variant leading-tight">Master Console</span>
           </div>
         </div>
       </div>

@@ -25,8 +25,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       <div className="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
-          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Active Feeds
+          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+            Connected Cameras
           </span>
           <span className="material-symbols-outlined text-on-surface-variant">videocam</span>
         </div>
@@ -34,7 +34,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           <span className="font-data-metric text-3xl font-bold text-on-surface">
             {onlineCams}/{totalCams}
           </span>
-          <span className={`font-label-mono-bold text-xs flex items-center gap-1 ${
+          <span className={`font-label-mono-bold text-xs flex items-center gap-1 font-bold ${
             onlineCams > 0 ? 'text-severity-safe' : 'text-on-surface-variant'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full inline-block ${
@@ -51,8 +51,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       }`}>
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
-          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Active Alerts
+          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+            Active Safety Alerts
           </span>
           <span className={`material-symbols-outlined ${activeCount > 0 ? 'text-severity-warning animate-pulse' : 'text-on-surface-variant'}`}>
             notifications_active
@@ -64,8 +64,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           }`}>
             {activeCount.toString().padStart(2, '0')}
           </span>
-          <span className="font-label-mono-bold text-xs text-on-surface-variant">
-            {activeCount > 0 ? 'REQ ATTN' : 'ALL CLEAR'}
+          <span className="font-label-mono-bold text-xs text-on-surface-variant font-bold">
+            {activeCount > 0 ? 'ACTION REQUIRED' : 'ALL CLEAR'}
           </span>
         </div>
       </div>
@@ -76,8 +76,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       }`}>
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-critical/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
-          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Critical Events
+          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+            Critical Hazards
           </span>
           <span className={`material-symbols-outlined ${criticalCount > 0 ? 'text-severity-critical animate-pulse' : 'text-on-surface-variant'}`}>
             warning
@@ -89,7 +89,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           }`}>
             {criticalCount.toString().padStart(2, '0')}
           </span>
-          <span className={`font-label-mono-bold text-xs ${
+          <span className={`font-label-mono-bold text-xs font-bold ${
             criticalCount > 0 ? 'text-severity-critical' : 'text-severity-safe'
           }`}>
             {criticalCount > 0 ? 'UNRESOLVED' : 'NOMINAL'}
@@ -101,8 +101,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       <div className="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-info/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-4">
-          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Workers Tracked
+          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+            Workers in View
           </span>
           <span className="material-symbols-outlined text-on-surface-variant">engineering</span>
         </div>
@@ -110,7 +110,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           <span className="font-data-metric text-3xl font-bold text-on-surface">
             {workersCount}
           </span>
-          <span className="font-label-mono-bold text-xs text-on-surface-variant">ON FLOOR</span>
+          <span className="font-label-mono-bold text-xs text-on-surface-variant font-bold">ON FLOOR</span>
         </div>
       </div>
 
@@ -118,8 +118,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({
       <div className="level-1-panel rounded-lg p-panel-padding flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-0 right-0 w-16 h-16 bg-severity-warning/10 rounded-bl-full blur-xl pointer-events-none" />
         <div className="flex justify-between items-start mb-2">
-          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider">
-            Avg Risk Index
+          <span className="font-label-mono text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+            Plant Risk Score
           </span>
           <span className="material-symbols-outlined text-on-surface-variant">speed</span>
         </div>
@@ -127,7 +127,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({
           <span className="font-data-metric text-3xl font-bold text-on-surface">
             {Math.round(avgRisk)}
           </span>
-          <span className="font-label-mono-bold text-xs text-on-surface-variant">/100</span>
+          <span className="font-label-mono-bold text-xs text-on-surface-variant font-bold">/100 MAX</span>
         </div>
         <div className="w-full bg-surface-container h-1.5 mt-2 rounded overflow-hidden">
           <div

@@ -31,16 +31,16 @@ export const SideNavBar: React.FC<SideNavBarProps> = ({
   onCloseMobile,
 }) => {
   const navItems: Array<{ id: TabType; label: string; icon: string }> = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-    { id: 'monitoring', label: 'Live Monitoring', icon: 'videocam' },
-    { id: 'alerts', label: 'Active Alerts', icon: 'warning' },
-    { id: 'events', label: 'Events Audit', icon: 'history' },
-    { id: 'cameras', label: 'Cameras', icon: 'videocam_off' },
-    { id: 'zones', label: 'Restricted Zones', icon: 'polyline' },
-    { id: 'analytics', label: 'Analytics', icon: 'insights' },
-    { id: 'map', label: 'Safety Map', icon: 'map' },
-    { id: 'settings', label: 'Settings', icon: 'settings' },
-    { id: 'mobile', label: 'Mobile Camera', icon: 'usb' },
+    { id: 'dashboard', label: 'Safety Overview', icon: 'dashboard' },
+    { id: 'monitoring', label: 'Live Video Surveillance', icon: 'videocam' },
+    { id: 'alerts', label: 'Active Hazard Alerts', icon: 'warning' },
+    { id: 'events', label: 'Safety Incident Log', icon: 'history' },
+    { id: 'cameras', label: 'Camera Management', icon: 'videocam_off' },
+    { id: 'zones', label: 'No-Entry & Danger Zones', icon: 'polyline' },
+    { id: 'analytics', label: 'Safety Analytics & Trends', icon: 'insights' },
+    { id: 'map', label: 'Plant Floor 2D Map', icon: 'map' },
+    { id: 'settings', label: 'Zone & Calibration Setup', icon: 'settings' },
+    { id: 'mobile', label: 'Mobile Phone Camera', icon: 'phone_android' },
   ];
 
   return (

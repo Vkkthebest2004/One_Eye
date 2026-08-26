@@ -12,36 +12,36 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
   const scenarios = [
     {
       id: 'missing_helmet',
-      title: '1. PPE Breach',
-      desc: 'Worker missing mandatory hardhat',
+      title: '1. PPE Compliance Test',
+      desc: 'Worker without hardhat or vest',
       icon: 'engineering',
       color: 'text-severity-warning',
     },
     {
       id: 'restricted_zone',
-      title: '2. Zone Breach',
-      desc: 'Worker enters Hydraulic Press boundary',
+      title: '2. No-Entry Zone Breach',
+      desc: 'Foot-anchor crosses safety perimeter',
       icon: 'emergency',
       color: 'text-severity-warning',
     },
     {
       id: 'proximity_danger',
-      title: '3. Proximity Danger',
-      desc: '1.1m + Zone + 8.4s dwell (Risk 86)',
+      title: '3. Machine Proximity Risk',
+      desc: 'Worker < 1.5m from running machine',
       icon: 'warning',
       color: 'text-severity-critical',
     },
     {
       id: 'fire_smoke',
-      title: '4. Fire / Smoke',
-      desc: 'Thermal flame pattern (Risk 95)',
+      title: '4. Fire & Smoke Outbreak',
+      desc: 'Plant-wide flame and smoke plume',
       icon: 'local_fire_department',
       color: 'text-severity-critical',
     },
     {
       id: 'worker_fall',
-      title: '5. Posture Fall',
-      desc: '4-stage drop & ground contact',
+      title: '5. Worker Fall & Collapse',
+      desc: 'Rapid posture drop and immobility',
       icon: 'person_off',
       color: 'text-primary',
     },
@@ -67,10 +67,10 @@ export const DemoScenariosBar: React.FC<DemoScenariosBarProps> = ({ onScenarioTr
       <div className="flex items-center justify-between">
         <span className="font-label-mono-bold text-xs uppercase tracking-wider text-on-surface flex items-center gap-1.5 font-bold">
           <span className="material-symbols-outlined text-primary text-sm">science</span>
-          Interactive Hazard Scenarios
+          Safety Test Runner &amp; Hazard Simulation
         </span>
         <span className="font-label-mono text-[10px] text-on-surface-variant hidden sm:inline">
-          Click scenario to trigger real-time AI risk escalation
+          Click any scenario to simulate real-time AI detection &amp; risk escalation
         </span>
       </div>
 
