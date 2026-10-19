@@ -18,7 +18,7 @@ This document tracks all version-controlled milestones in the repository. If you
   - Locked danger perimeter to fixed normalized $(X, Y)$ coordinates ($0.0000 - 1.0000$).
   - Configured `DANGER_ZONE_REACHED` alert trigger: only fires when a person's physical foot contact point enters the marked coordinate perimeter.
 
-- **Commit `HEAD`**: `feat(retrospective): 60-second video sequence retrospective & incident reconstruction intelligence engine`
+- **Commit `91f92a7`**: `feat(retrospective): 60-second video sequence retrospective & incident reconstruction intelligence engine`
   - Built rolling 60-second in-memory video & observation ring buffer (`RollingSequenceBuffer`) retaining timestamped preview frames and CV telemetry with zero disk wear (~6MB RAM footprint).
   - Implemented temporal sequence reconstructor (`SequenceReconstructor`) extracting ordered chronological event timelines (`MM:SS — observation`).
   - Implemented multi-domain operational rule evaluation (`INDUSTRIAL_SOP`, `EQUIPMENT_OPERATION`, `SECURITY_PERIMETER`, `ERGONOMICS_SAFETY`, and `CUSTOM` user goals).
@@ -52,7 +52,7 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
-| **`HEAD`** | `retrospective` | 60-second video retrospective sequence intelligence, timeline reconstruction & SOP diagnosis |
+| **`91f92a7`** | `retrospective` | 60-second video retrospective sequence intelligence, timeline reconstruction & SOP diagnosis |
 | **`8277109`** | `system` | Camera hardware stop/start controls, PPE accuracy, kinematic risk engine, and landing page |
 | **`1da1b30`** | `zones` | Resolve danger zone false breaches with strict foot ground-anchor intersection |
 | **`5dbae5e`** | `cv` | Integrate Qwen2-VL perception engine with hot-switching and precision person filtering |
