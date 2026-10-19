@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SafetyEvent } from '@/types';
-import { ShieldAlert, AlertTriangle, CheckCircle2, Flame, HardHat, Compass, Clock, ArrowUpRight, User, MapPin } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, CheckCircle2, Flame, HardHat, Compass, Clock, ArrowUpRight, User, MapPin, Glasses } from 'lucide-react';
 
 interface AlertCenterTabProps {
   alerts: SafetyEvent[];
@@ -28,7 +28,8 @@ export const AlertCenterTab: React.FC<AlertCenterTabProps> = ({
 
   const getHazardIcon = (hazard: string) => {
     if (hazard.includes('FIRE') || hazard.includes('SMOKE')) return <Flame className="w-4 h-4 text-severity-critical" />;
-    if (hazard.includes('HELMET') || hazard.includes('PPE')) return <HardHat className="w-4 h-4 text-severity-warning" />;
+    if (hazard.includes('GLASSES')) return <Glasses className="w-4 h-4 text-severity-warning" />;
+    if (hazard.includes('HELMET') || hazard.includes('PPE') || hazard.includes('VEST')) return <HardHat className="w-4 h-4 text-severity-warning" />;
     if (hazard.includes('PROXIMITY')) return <Compass className="w-4 h-4 text-cyan-400" />;
     return <ShieldAlert className="w-4 h-4 text-severity-critical" />;
   };

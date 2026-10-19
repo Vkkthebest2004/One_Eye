@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { SideNavBar, TabType } from '@/components/dashboard/SideNavBar';
 import { TopNavBar } from '@/components/dashboard/TopNavBar';
 import { KpiRow } from '@/components/dashboard/KpiRow';
-import { DemoScenariosBar } from '@/components/dashboard/DemoScenariosBar';
 import { MonitoringArray } from '@/components/dashboard/MonitoringArray';
 import { EventStreamSidebar } from '@/components/dashboard/EventStreamSidebar';
 import { AlertCenterTab } from '@/components/dashboard/AlertCenterTab';
@@ -12,7 +11,6 @@ import { AnalyticsTab } from '@/components/dashboard/AnalyticsTab';
 import { SafetyMapTab } from '@/components/dashboard/SafetyMapTab';
 import { EventsAuditTab } from '@/components/dashboard/EventsAuditTab';
 import { SettingsTab } from '@/components/dashboard/SettingsTab';
-import { MobileConnectionTab } from '@/components/dashboard/MobileConnectionTab';
 import { ForensicDetailModal } from '@/components/dashboard/ForensicDetailModal';
 
 import { Camera, Zone, Machine, SafetyEvent, SystemHealth, AnalyticsSummary } from '@/types';
@@ -29,9 +27,23 @@ import {
 } from '@/lib/api';
 import { useOneEyeWebSocket } from '@/lib/websocket';
 
-export default function DashboardPage() {
+export default function HomeSurveillanceDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [cameras, setCameras] = useState<Camera[]>([]);
+  
+  // Default with active primary channel so stream begins instantly
+  const [cameras, setCameras] = useState<Camera[]>([
+    {
+      id: 'CAM_WEBCAM',
+      name: 'Laptop Built-in Webcam (FaceTime HD)',
+      source: '0',
+      source_type: 'webcam',
+      fps: 30.0,
+      resolution: '1280x720',
+      status: 'ONLINE',
+      is_calibrated: true,
+      created_at: new Date().toISOString(),
+    },
+  ]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -49,6 +61,7 @@ export default function DashboardPage() {
     cameraDetections,
     cameraFps,
     visualZones,
+    cameraIntrusions,
     setActiveAlerts,
   } = useOneEyeWebSocket();
 
@@ -62,18 +75,22 @@ export default function DashboardPage() {
         getAnalyticsSummary(),
         getEvents({ limit: 200 }),
       ]);
-      setCameras(cams);
-      setZones(zns);
-      setMachines(machs);
+      if (cams && cams.length > 0) {
+        setCameras(cams);
+      }
+      setZones(zns || []);
+      setMachines(machs || []);
       setHealth(hlth);
       setSummary(summ);
-      const active = eventsResult.events.filter(
-        (event) => event.status === 'ALERTING' || event.status === 'ACKNOWLEDGED'
-      );
-      const priority: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, ADVISORY: 1 };
-      setActiveAlerts(active.sort((a, b) => (priority[b.severity] || 0) - (priority[a.severity] || 0)));
+      if (eventsResult && eventsResult.events) {
+        const active = eventsResult.events.filter(
+          (event) => event.status === 'ALERTING' || event.status === 'ACKNOWLEDGED'
+        );
+        const priority: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, ADVISORY: 1 };
+        setActiveAlerts(active.sort((a, b) => (priority[b.severity] || 0) - (priority[a.severity] || 0)));
+      }
     } catch (e) {
-      console.error('Failed to load initial data:', e);
+      console.error('Failed to load surveillance data:', e);
     }
   };
 
@@ -125,7 +142,7 @@ export default function DashboardPage() {
   const totalTracksCount = Object.values(cameraTracks).reduce((acc, trks) => acc + trks.length, 0);
 
   return (
-    <div className="flex h-screen w-full antialiased grid-bg bg-background text-on-surface overflow-hidden">
+    <div className="flex h-screen w-full antialiased bg-background text-on-surface overflow-hidden">
       {/* Side Navigation Bar */}
       <SideNavBar
         activeTab={activeTab}
@@ -137,7 +154,7 @@ export default function DashboardPage() {
       />
 
       {/* Main Content Area */}
-      <main className="md:ml-64 flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+      <main className="md:ml-60 flex-1 flex flex-col h-screen overflow-hidden min-w-0">
         {/* Top App Bar */}
         <TopNavBar
           health={health}
@@ -148,27 +165,8 @@ export default function DashboardPage() {
         />
 
         {/* Scrollable Dashboard View Canvas with Rigid Scroll Bounds */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-5 flex flex-col gap-4 min-h-0 w-full">
-          {/* Top Title & Demo Runner Bar */}
-          <div className="flex flex-col gap-2 shrink-0">
-            <div className="flex justify-between items-end">
-              <div>
-                <h2 className="font-headline-md text-lg md:text-xl font-bold text-on-surface tracking-tight">
-                  Industrial Safety Command Center
-                </h2>
-                <p className="font-label-mono text-[11px] text-on-surface-variant uppercase mt-0.5">
-                  Sector 01 // Multi-Camera Hazard Detection Array
-                </p>
-              </div>
-            </div>
-
-            {/* 1-Click Interactive Hazard Scenarios Bar (Only shown when Demo Simulation Mode is enabled) */}
-            {demoMode && (
-              <DemoScenariosBar onScenarioTriggered={loadData} />
-            )}
-          </div>
-
-          {/* 5 KPI Metric Cards Row */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-4 flex flex-col gap-3 min-h-0 w-full">
+          {/* Minimal 4-Metric Telemetry Strip */}
           <div className="shrink-0">
             <KpiRow
               summary={summary}
@@ -179,8 +177,8 @@ export default function DashboardPage() {
 
           {/* Tab 1 & 2: Dashboard / Live Monitoring Array */}
           {(activeTab === 'dashboard' || activeTab === 'monitoring') && (
-            <div className="grid grid-cols-12 gap-4 flex-1 min-h-0 items-start pb-6">
-              {/* Left: 2x2 Camera Monitoring Array (9 cols on XL, 8 on LG) */}
+            <div className="grid grid-cols-12 gap-3 flex-1 min-h-0 items-start pb-4">
+              {/* Left: Camera Feed Array (8-9 cols on desktop) */}
               <div className="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col min-w-0 min-h-0">
                 <MonitoringArray
                   cameras={cameras}
@@ -190,11 +188,12 @@ export default function DashboardPage() {
                   cameraDetections={cameraDetections}
                   cameraFps={cameraFps}
                   visualZones={visualZones}
+                  cameraIntrusions={cameraIntrusions}
                   onZonesUpdated={loadData}
                 />
               </div>
 
-              {/* Right: Live Event Stream & Incident Queue (3 cols on XL, 4 on LG) */}
+              {/* Right: Live Event Stream & Incident Queue (3-4 cols on desktop) */}
               <div className="col-span-12 lg:col-span-4 xl:col-span-3 flex flex-col min-w-0 min-h-0 lg:sticky lg:top-0 max-h-[calc(100vh-140px)]">
                 <EventStreamSidebar
                   alerts={activeAlerts}
@@ -256,14 +255,6 @@ export default function DashboardPage() {
               />
             </div>
           )}
-
-          {/* Tab 8: Mobile USB Connection */}
-          {activeTab === 'mobile' && (
-            <div className="flex-1 min-h-0 pb-6">
-              <MobileConnectionTab onDeviceConnected={loadData} />
-            </div>
-          )}
-
         </div>
       </main>
 

@@ -218,6 +218,49 @@ const CameraFeedCard: React.FC<CameraFeedCardProps> = ({
 
     // 3. Draw Active Worker Tracks & Bounding Boxes
     if (showBBoxes) {
+      const width = canvas.width;
+      const height = canvas.height;
+      // Draw Detected Multi-Category Objects (Electronics, Containers, Furniture, Hazards, Tools)
+      detections.forEach((det: any) => {
+        const cat = (det.category || 'OBJECT').toUpperCase();
+        if (cat === 'PERSON') return;
+
+        let x = 0, y = 0, w = 0, h = 0;
+        if (det.norm_bbox && det.norm_bbox.length === 4) {
+          const [nx1, ny1, nx2, ny2] = det.norm_bbox;
+          x = nx1 * width;
+          y = ny1 * height;
+          w = (nx2 - nx1) * width;
+          h = (ny2 - ny1) * height;
+        } else if (det.bbox && det.bbox.length === 4) {
+          const [bx1, by1, bx2, by2] = det.bbox;
+          x = bx1 * scaleX;
+          y = by1 * scaleY;
+          w = (bx2 - bx1) * scaleX;
+          h = (by2 - by1) * scaleY;
+        }
+
+        let objColor = '#06b6d4';
+        if (cat === 'ELECTRONICS') objColor = '#06b6d4';
+        else if (cat === 'HAZARD_OBJECT') objColor = '#f59e0b';
+        else if (cat === 'MACHINE') objColor = '#ff8a00';
+        else if (cat === 'CONTAINER') objColor = '#10b981';
+        else if (cat === 'FURNITURE') objColor = '#8b5cf6';
+        else if (cat === 'FACE') objColor = '#ec4899';
+
+        ctx.strokeStyle = objColor;
+        ctx.lineWidth = 1.8;
+        ctx.strokeRect(x, y, w, h);
+
+        const lbl = `${(det.class_name || cat).toUpperCase()} ${Math.round((det.confidence || 0.85) * 100)}%`;
+        ctx.font = 'bold 9px monospace';
+        const tw = ctx.measureText(lbl).width;
+        ctx.fillStyle = objColor;
+        ctx.fillRect(x, Math.max(12, y - 14), tw + 8, 14);
+        ctx.fillStyle = '#000000';
+        ctx.fillText(lbl, x + 4, Math.max(12, y - 3));
+      });
+
       tracks.forEach((trk) => {
         if (!trk.bbox || trk.bbox.length < 4) return;
         const [bx1, by1, bx2, by2] = trk.bbox;
@@ -267,6 +310,24 @@ const CameraFeedCard: React.FC<CameraFeedCardProps> = ({
           ctx.fillStyle = '#ffffff';
           ctx.font = 'bold 9px monospace';
           ctx.fillText('NO HELMET', x1 + 4, badgeY);
+          badgeY += 16;
+        }
+
+        if (trk.has_vest === false) {
+          ctx.fillStyle = '#f59e0b';
+          ctx.fillRect(x1, badgeY - 10, 85, 14);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px monospace';
+          ctx.fillText('NO VEST', x1 + 4, badgeY);
+          badgeY += 16;
+        }
+
+        if (trk.has_glasses === false) {
+          ctx.fillStyle = '#ea580c';
+          ctx.fillRect(x1, badgeY - 10, 85, 14);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = 'bold 9px monospace';
+          ctx.fillText('NO GLASSES', x1 + 4, badgeY);
           badgeY += 16;
         }
 

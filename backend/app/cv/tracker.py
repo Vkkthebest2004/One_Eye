@@ -25,8 +25,10 @@ class Track:
     # Safety State Attributes
     has_helmet: Optional[bool] = None
     has_vest: Optional[bool] = None
+    has_glasses: Optional[bool] = None
     helmet_confidence: float = 0.0
     vest_confidence: float = 0.0
+    glasses_confidence: float = 0.0
     current_zone_id: Optional[str] = None
     closest_machine_id: Optional[str] = None
     closest_machine_distance_m: Optional[float] = None
@@ -35,6 +37,7 @@ class Track:
     current_risk_score: int = 0
     exposure_seconds: float = 0.0
     requires_vlm: bool = False
+    keypoints: Optional[List[List[float]]] = None
 
     def update(self, detection: Detection, timestamp: float):
         dt = max(1e-3, timestamp - self.last_seen)
@@ -66,6 +69,7 @@ class Track:
             alpha * new_center[1] + (1.0 - alpha) * self.center[1],
         )
         self.confidence = detection.confidence
+        self.keypoints = detection.keypoints
         self.last_seen = timestamp
         self.lost_frames = 0
         self.state = "ACTIVE"
@@ -78,6 +82,8 @@ class Track:
             self.has_helmet = detection.has_helmet
         if detection.has_vest is not None:
             self.has_vest = detection.has_vest
+        if detection.has_glasses is not None:
+            self.has_glasses = detection.has_glasses
 
     def mark_missed(self):
         self.lost_frames += 1
@@ -99,6 +105,8 @@ class Track:
             "state": self.state,
             "has_helmet": self.has_helmet,
             "has_vest": self.has_vest,
+            "has_glasses": self.has_glasses,
+            "glasses_confidence": round(self.glasses_confidence, 2),
             "current_zone_id": self.current_zone_id,
             "closest_machine_id": self.closest_machine_id,
             "closest_machine_distance_m": round(self.closest_machine_distance_m, 2) if self.closest_machine_distance_m is not None else None,
@@ -121,6 +129,7 @@ class MultiObjectTracker:
         self.iou_threshold = iou_threshold
         self.tracks: Dict[int, Track] = {}
         self.next_track_id: int = 1
+        self.latest_removed_ids: List[int] = []
 
     @staticmethod
     def _compute_iou(boxA: Tuple[float, float, float, float], boxB: Tuple[float, float, float, float]) -> float:
@@ -211,6 +220,9 @@ class MultiObjectTracker:
                 )
                 self.tracks[self.next_track_id] = new_track
                 self.next_track_id += 1
+
+        # Capture removed track IDs for downstream engine state cleanup
+        self.latest_removed_ids = [tid for tid, trk in self.tracks.items() if trk.state == "REMOVED"]
 
         # Clean up stale removed tracks
         self.tracks = {tid: trk for tid, trk in self.tracks.items() if trk.state != "REMOVED"}

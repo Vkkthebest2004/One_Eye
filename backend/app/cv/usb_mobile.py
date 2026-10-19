@@ -665,6 +665,15 @@ class MobileConnectionManager:
                 if serial in self.devices and self.devices[serial].is_connected:
                     dev.is_connected = True
                     dev.connection_mode = self.devices[serial].connection_mode
+                
+                # Automatically reverse host ports 3001 and 8001 for seamless physical USB access
+                if not is_unauth:
+                    try:
+                        self.adb.reverse_port(serial, 3001, 3001)
+                        self.adb.reverse_port(serial, 8001, 8001)
+                    except Exception:
+                        pass
+                
                 discovered[serial] = dev
 
         # 2. UVC video devices (could be phone in webcam mode)

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 from shapely.geometry import Point, Polygon
 
@@ -27,17 +27,24 @@ class ZoneDefinition:
             self.allowed_classes = []
         if len(self.polygon_points) >= 3:
             self._shapely_polygon = Polygon(self.polygon_points)
+            self._is_normalized = all(0.0 <= p[0] <= 1.0 and 0.0 <= p[1] <= 1.0 for p in self.polygon_points)
         else:
             self._shapely_polygon = None
+            self._is_normalized = False
 
     def contains_point(self, x: float, y: float, frame_w: float = 1280.0, frame_h: float = 720.0) -> bool:
         if not self.active or self._shapely_polygon is None:
             return False
         
         px, py = x, y
-        if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
-            px = min(1.0, max(0.0, px / frame_w))
-            py = min(1.0, max(0.0, py / frame_h))
+        if self._is_normalized:
+            if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
+                px = min(1.0, max(0.0, px / frame_w))
+                py = min(1.0, max(0.0, py / frame_h))
+        else:
+            if px <= 1.0 and py <= 1.0 and frame_w > 0 and frame_h > 0:
+                px = px * frame_w
+                py = py * frame_h
 
         point = Point(px, py)
         return self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point)
@@ -88,9 +95,14 @@ class ZoneDefinition:
             return 999.0
 
         px, py = x, y
-        if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
-            px = min(1.0, max(0.0, px / frame_w))
-            py = min(1.0, max(0.0, py / frame_h))
+        if self._is_normalized:
+            if (px > 1.0 or py > 1.0) and frame_w > 0 and frame_h > 0:
+                px = min(1.0, max(0.0, px / frame_w))
+                py = min(1.0, max(0.0, py / frame_h))
+        else:
+            if px <= 1.0 and py <= 1.0 and frame_w > 0 and frame_h > 0:
+                px = px * frame_w
+                py = py * frame_h
 
         point = Point(px, py)
         if self._shapely_polygon.contains(point) or self._shapely_polygon.touches(point):
@@ -130,6 +142,62 @@ class ZoneEngine:
 
     def get_zone(self, zone_id: str) -> Optional[ZoneDefinition]:
         return self.zones.get(zone_id)
+
+    def load_from_config(
+        self,
+        config_or_path: Any,
+        camera_id: str = "CAM_01",
+        zone_id: Optional[str] = None,
+        zone_name: Optional[str] = None,
+        severity: int = 90
+    ) -> Optional[ZoneDefinition]:
+        """
+        Load a zone polygon directly from a zone_selector.py JSON configuration.
+        Automatically scales/normalizes coordinates from image_size to 0.0-1.0.
+        """
+        import json
+        import time
+        from pathlib import Path
+        cfg = None
+        if isinstance(config_or_path, (str, Path)):
+            p = Path(config_or_path)
+            if p.exists():
+                with open(p, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+        elif isinstance(config_or_path, dict):
+            cfg = config_or_path
+
+        if not cfg or "polygon" not in cfg:
+            return None
+
+        raw_poly = cfg["polygon"]
+        if len(raw_poly) < 3:
+            return None
+
+        image_size = cfg.get("image_size", [1280, 720])
+        fw, fh = float(image_size[0]), float(image_size[1])
+
+        # Normalize points to 0.0-1.0
+        norm_poly = []
+        for pt in raw_poly:
+            px, py = float(pt[0]), float(pt[1])
+            if fw > 0 and fh > 0 and (px > 1.0 or py > 1.0):
+                norm_poly.append((round(min(1.0, max(0.0, px / fw)), 4), round(min(1.0, max(0.0, py / fh)), 4)))
+            else:
+                norm_poly.append((round(min(1.0, max(0.0, px)), 4), round(min(1.0, max(0.0, py)), 4)))
+
+        zid = zone_id or f"ZONE_{camera_id}_{int(time.time())}"
+        zname = zone_name or f"Restricted Area ({Path(cfg.get('image', 'Custom')).stem})"
+        zone_def = ZoneDefinition(
+            id=zid,
+            name=zname,
+            camera_id=camera_id,
+            polygon_points=norm_poly,
+            severity=severity,
+            active=True
+        )
+        self.register_zone(zone_def)
+        return zone_def
 
     def clear_zones(self, camera_id: Optional[str] = None):
         if camera_id:

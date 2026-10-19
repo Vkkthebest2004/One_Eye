@@ -65,3 +65,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Datasets, Training Runs & Build Cache
+datasets/
+runs/
+*.tsbuildinfo
+

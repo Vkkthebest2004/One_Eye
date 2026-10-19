@@ -63,8 +63,9 @@ class CameraPipeline:
         # Core CV Subsystems
         self.source = CameraSource(camera_id=camera_id, source=source_uri, loop=True)
         self.yolo_detector = detector
-        from app.cv.detector import QwenVLDetector
-        self.qwen_detector = QwenVLDetector()
+        self._qwen_detector = None
+        from app.cv.intrusion import IntrusionDetector
+        self.intrusion_detector = IntrusionDetector(evidence_dir=str(settings.get_evidence_dir() / "intrusions"))
         self.tracker = MultiObjectTracker()
         self.ppe_engine = PPEEngine(persistence_threshold_sec=1.0)
         self.zone_engine = ZoneEngine()
@@ -75,6 +76,7 @@ class CameraPipeline:
         self.fire_detector = FireSmokeDetector()
         self.risk_engine = RiskEngine()
         self.reasoner = QwenReasoner() if (settings.ENABLE_QWEN and settings.QWEN_API_KEY) else NoOpReasoner()
+        self._cleanup_counter: int = 0
 
         # Operational State
         self.is_running = False
@@ -88,6 +90,16 @@ class CameraPipeline:
         self._inference_in_flight: bool = False
         self._ai_interval: float = 1.0 / max(1, settings.INFERENCE_FPS)
         self._local_lock = asyncio.Lock()
+        self._prev_small_gray: Optional[np.ndarray] = None
+        self._last_full_eval_time: float = 0.0
+        self._last_fire_check_time: float = 0.0
+
+    @property
+    def qwen_detector(self):
+        if self._qwen_detector is None:
+            from app.cv.detector import QwenVLDetector
+            self._qwen_detector = QwenVLDetector(fallback_detector=self.yolo_detector)
+        return self._qwen_detector
 
     def start(self):
         if self.is_running:
@@ -97,60 +109,92 @@ class CameraPipeline:
         logger.info(f"[{self.camera_id}] Pipeline online for source {self.source_uri}")
 
     async def stop(self):
+        if not self.is_running and self._task is None:
+            return
         self.is_running = False
-        if self._task:
-            self._task.cancel()
+        task = self._task
+        self._task = None
+        if task and not task.done():
             try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-        await asyncio.to_thread(self.source.release)
-        logger.info(f"[{self.camera_id}] Pipeline stopped")
+                # Give task up to 1.0s to finish loop gracefully
+                await asyncio.wait_for(asyncio.shield(task), timeout=1.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+            except Exception as e:
+                logger.warning(f"[{self.camera_id}] Error waiting for pipeline loop to finish: {e}")
+
+        try:
+            await asyncio.to_thread(self.source.release)
+        except Exception as e:
+            logger.warning(f"[{self.camera_id}] Error releasing camera source: {e}")
+
+        self.latest_frame = None
+        self.latest_detections = []
+        self.latest_tracks = []
+        self.measured_fps = 0.0
+        self.active_tracks_count = 0
+        try:
+            await self.dispatcher.broadcast_camera_status(self.camera_id, "OFFLINE", 0.0)
+        except Exception:
+            pass
+        logger.info(f"[{self.camera_id}] Pipeline stopped and camera hardware released")
 
     async def _run_loop(self):
-        if not await asyncio.to_thread(self.source.connect):
-            logger.warning(f"[{self.camera_id}] Initial connection pending. Reconnection active.")
+        try:
+            if not await asyncio.to_thread(self.source.connect):
+                logger.warning(f"[{self.camera_id}] Initial connection pending. Reconnection active.")
 
-        last_inference_time = 0.0
-        fps_timer = time.time()
-        fps_frame_count = 0
-        target_frame_time = self.frame_interval
+            last_inference_time = 0.0
+            fps_timer = time.time()
+            fps_frame_count = 0
+            target_frame_time = self.frame_interval
 
-        last_frame_received_time = time.time()
-        while self.is_running:
-            loop_start = time.time()
+            last_frame_received_time = time.time()
+            while self.is_running:
+                loop_start = time.time()
 
-            ret, frame, timestamp = await asyncio.to_thread(self.source.read)
-            if not ret or frame is None:
-                if (loop_start - last_frame_received_time) > 5.0:
-                    await self.dispatcher.broadcast_camera_status(self.camera_id, "OFFLINE", 0.0)
-                await asyncio.sleep(0.05)
-                continue
+                ret, frame, timestamp = await asyncio.to_thread(self.source.read)
+                if not self.is_running:
+                    break
+                if not ret or frame is None:
+                    if (loop_start - last_frame_received_time) > 5.0:
+                        await self.dispatcher.broadcast_camera_status(self.camera_id, "OFFLINE", 0.0)
+                    await asyncio.sleep(0.05)
+                    continue
 
-            last_frame_received_time = loop_start
-            self.latest_frame = frame
-            fps_frame_count += 1
+                last_frame_received_time = loop_start
+                self.latest_frame = frame
+                fps_frame_count += 1
 
-            if time.time() - fps_timer >= 1.0:
-                self.measured_fps = fps_frame_count / (time.time() - fps_timer)
-                fps_frame_count = 0
-                fps_timer = time.time()
+                if time.time() - fps_timer >= 1.0:
+                    self.measured_fps = fps_frame_count / (time.time() - fps_timer)
+                    fps_frame_count = 0
+                    fps_timer = time.time()
 
-            # Non-blocking AI Hazard Inference
-            if (loop_start - last_inference_time) >= self._ai_interval and not self._inference_in_flight:
-                last_inference_time = loop_start
-                if pipeline_manager.ai_enabled:
-                    self._inference_in_flight = True
-                    asyncio.create_task(self._process_frame_async(frame.copy(), timestamp))
-                else:
-                    self.latest_detections = []
-                    self.latest_tracks = []
-                    self.active_tracks_count = 0
-                    self.avg_inference_ms = 0.0
+                # Non-blocking AI Hazard Inference
+                if (loop_start - last_inference_time) >= self._ai_interval and not self._inference_in_flight:
+                    last_inference_time = loop_start
+                    if pipeline_manager.ai_enabled:
+                        self._inference_in_flight = True
+                        asyncio.create_task(self._process_frame_async(frame.copy(), timestamp))
+                    else:
+                        self.latest_detections = []
+                        self.latest_tracks = []
+                        self.active_tracks_count = 0
+                        self.avg_inference_ms = 0.0
 
-            elapsed = time.time() - loop_start
-            sleep_time = max(0.002, target_frame_time - elapsed)
-            await asyncio.sleep(sleep_time)
+                elapsed = time.time() - loop_start
+                sleep_time = max(0.002, target_frame_time - elapsed)
+                await asyncio.sleep(sleep_time)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"[{self.camera_id}] Error in run loop: {e}")
 
     async def _process_frame_async(self, frame: np.ndarray, timestamp: float):
         try:
@@ -164,6 +208,22 @@ class CameraPipeline:
         t0 = time.time()
         h, w = frame.shape[:2]
 
+        # Motion-Gated Inference: If scene is static and no active tracks, skip neural pass
+        import cv2
+        skip_neural = False
+        small_gray = cv2.cvtColor(cv2.resize(frame, (160, 90), interpolation=cv2.INTER_NEAREST), cv2.COLOR_BGR2GRAY)
+        if self._prev_small_gray is not None and self.active_tracks_count == 0:
+            diff = float(np.mean(cv2.absdiff(small_gray, self._prev_small_gray)))
+            if diff < 2.0 and (timestamp - self._last_full_eval_time) < 1.0:
+                skip_neural = True
+        self._prev_small_gray = small_gray
+
+        if skip_neural:
+            self.avg_inference_ms = 0.5
+            return
+
+        self._last_full_eval_time = timestamp
+
         # 1. Primary High-Speed Concurrent Perception (YOLOv8 MPS ~12ms / Qwen2-VL)
         mode = pipeline_manager.perception_mode
         active_detector = self.qwen_detector if mode == "QWEN_VL" else self.yolo_detector
@@ -172,7 +232,7 @@ class CameraPipeline:
         # Separate detected PPE items for spatial association
         detected_ppe_items: List[PPEItem] = []
         for d in detections:
-            if d.category in ("PPE_HELMET", "NO_HELMET", "PPE_VEST", "NO_VEST"):
+            if d.category in ("PPE_HELMET", "NO_HELMET", "PPE_VEST", "NO_VEST", "PPE_GLASSES", "NO_GLASSES"):
                 detected_ppe_items.append(PPEItem(
                     item_type=d.category,
                     confidence=d.confidence,
@@ -184,8 +244,11 @@ class CameraPipeline:
         active_tracks = self.tracker.update(detections, timestamp)
         self.active_tracks_count = len(active_tracks)
 
-        # 3. Fire & Smoke Detection Branch
-        fire_smoke_results = await asyncio.to_thread(self.fire_detector.detect, frame)
+        # 3. Fire & Smoke Detection Branch (Checked every 1.5 seconds)
+        fire_smoke_results = []
+        if (timestamp - self._last_fire_check_time) >= 1.5:
+            self._last_fire_check_time = timestamp
+            fire_smoke_results = await asyncio.to_thread(self.fire_detector.detect, frame)
         present_system_scopes = set()
         for fs in fire_smoke_results:
             fs_assessment = self.risk_engine.evaluate(
@@ -211,35 +274,41 @@ class CameraPipeline:
             now=timestamp,
         )
 
-        # 3.4. Dynamic Object-Centric Danger Zones (Qwen2-VL & Open-Vocabulary Grounding)
-        for d in detections:
-            if d.category in ("MACHINE", "DANGER_ZONE", "HAZARD_OBJECT") and d.confidence >= 0.40:
-                nx1 = max(0.0, (d.x1 - 10) / w)
-                ny1 = max(0.0, (d.y1 - 10) / h)
-                nx2 = min(1.0, (d.x2 + 10) / w)
-                ny2 = min(1.0, (d.y2 + 10) / h)
-                obj_zone_id = f"OBJ_{d.category}_{d.class_name.upper()[:8]}"
-                self.zone_engine.register_zone(
-                    ZoneDefinition(
-                        id=obj_zone_id,
-                        name=f"Hazard Perimeter: {d.class_name.title()}",
-                        camera_id=self.camera_id,
-                        polygon_points=[[nx1, ny1], [nx2, ny1], [nx2, ny2], [nx1, ny2]],
-                        severity=95 if d.category == "MACHINE" else 85,
-                        active=True
-                    )
+        # 3.4. Precision Restricted Zone Intrusion Detection (MediaPipe Hands + Point-in-Polygon)
+        active_camera_zones = [
+            z for z in self.zone_engine.zones.values()
+            if (z.camera_id == self.camera_id or (self.camera_id.startswith("CAM_MOB") and z.camera_id.startswith("CAM_MOB"))) and z.active
+        ]
+        intrusion_events = []
+        if active_camera_zones and (self.active_tracks_count > 0 or len(detections) > 0):
+            intrusion_events = await asyncio.to_thread(
+                self.intrusion_detector.detect_intrusions,
+                frame,
+                active_camera_zones,
+                self.camera_id,
+                timestamp
+            )
+        self.latest_intrusions = intrusion_events
+        for ie in intrusion_events:
+            if ie.intruded:
+                assessment = self.risk_engine.evaluate(
+                    worker_id=None,
+                    active_hazards=[f"ZONE_INTRUSION_{ie.zone_id}"],
+                    detection_confidence=0.96
+                )
+                assessment.risk_score = max(assessment.risk_score, 90)
+                await self.event_manager.process_assessment(
+                    camera_id=self.camera_id,
+                    assessment=assessment,
+                    frame=frame,
+                    is_demo=settings.DEMO_MODE,
+                    alert_dispatcher=self.dispatcher
                 )
 
         # 3.5. Visual Danger Memory & Dynamic Homography Tracking
         is_mobile_feed = self.camera_id.startswith("CAM_MOB") or self.camera_id == "CAM_MOBILE"
         tracked_visual_zones = visual_memory_engine.track_live_frame(frame, self.camera_id)
         
-        # On mobile phone feeds, strictly deactivate static zones by default unless homography confirmed
-        if is_mobile_feed:
-            for zid, zone_def in self.zone_engine.zones.items():
-                if not zid.startswith("OBJ_"):
-                    zone_def.active = False
-
         for tvz in tracked_visual_zones:
             if tvz.is_visible and len(tvz.polygon_norm) >= 3:
                 # The physical object is recognized in current camera frame -> Lock zone to object
@@ -274,20 +343,24 @@ class CameraPipeline:
                 person_bbox=bbox,
                 frame=frame,
                 detected_ppe_items=detected_ppe_items,
-                explicit_helmet=track.has_helmet,
-                explicit_vest=track.has_vest,
+                explicit_helmet=None,
+                explicit_vest=None,
                 timestamp=timestamp
             )
             track.has_helmet = ppe_status.has_helmet
             track.has_vest = ppe_status.has_vest
+            track.has_glasses = ppe_status.has_glasses
             track.helmet_confidence = ppe_status.helmet_confidence
             track.vest_confidence = ppe_status.vest_confidence
+            track.glasses_confidence = ppe_status.glasses_confidence
             track.requires_vlm = ppe_status.requires_vlm_disambiguation
 
             if ppe_status.is_violation and not ppe_status.has_helmet:
                 worker_hazards.append("NO_HELMET")
             if ppe_status.is_violation and not ppe_status.has_vest:
                 worker_hazards.append("NO_VEST")
+            if ppe_status.is_violation and not ppe_status.has_glasses and "SAFETY_GLASSES" in ppe_status.missing_items:
+                worker_hazards.append("NO_GLASSES")
 
             # B. Restricted Zone Geofencing (Point-in-Polygon & Spatial Intersection)
             zone_events = self.zone_engine.evaluate_worker(
@@ -338,6 +411,7 @@ class CameraPipeline:
                 worker_id=worker_id,
                 bbox=bbox,
                 velocity=track.velocity,
+                keypoints=track.keypoints,
                 timestamp=timestamp
             )
             track.is_fallen = fall_status.is_fall
@@ -371,7 +445,8 @@ class CameraPipeline:
                 active_hazards=worker_hazards,
                 exposure_duration_sec=exposure_rec.duration_seconds,
                 proximity_distance_m=min_dist,
-                detection_confidence=track.confidence
+                detection_confidence=track.confidence,
+                timestamp=timestamp
             )
             track.current_risk_score = assessment.risk_score
 
@@ -394,6 +469,26 @@ class CameraPipeline:
             alert_dispatcher=self.dispatcher,
             now=timestamp,
         )
+
+        # Cleanup removed worker tracks across all state tracking subsystems
+        for rem_id in getattr(self.tracker, "latest_removed_ids", []):
+            self.ppe_engine.cleanup_worker(rem_id)
+            self.fall_detector.cleanup_worker(rem_id)
+            self.risk_engine.cleanup_worker(rem_id)
+            self.exposure_tracker.reset(self.camera_id, rem_id)
+
+        # Periodic memory hygiene & state prune (every ~10-15 seconds / 150 frames)
+        self._cleanup_counter += 1
+        if self._cleanup_counter >= 150:
+            self._cleanup_counter = 0
+            self.exposure_tracker.cleanup_old_records(max_age_seconds=30.0, current_time=timestamp)
+            self.fall_detector.cleanup_stale_workers(max_age_seconds=60.0, current_time=timestamp)
+            self.ppe_engine.cleanup_stale_workers(max_age_seconds=60.0, current_time=timestamp)
+            self.risk_engine.cleanup_stale_workers({t.track_id for t in active_tracks}, max_idle_sec=30.0, now=timestamp)
+            import gc, torch
+            gc.collect()
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
 
         self.avg_inference_ms = round((time.time() - t0) * 1000, 1)
 
@@ -427,6 +522,19 @@ class CameraPipeline:
             for tvz in tracked_visual_zones
         ]
 
+        intrusions_payload = [
+            {
+                "zone_id": ie.zone_id,
+                "zone_name": ie.zone_name,
+                "intruded": ie.intruded,
+                "contact_points": ie.contact_points,
+                "norm_contact_points": ie.norm_contact_points,
+                "intrusion_points": ie.norm_contact_points,
+                "intrusion_type": ie.intrusion_type,
+            }
+            for ie in getattr(self, "latest_intrusions", []) if ie.intruded
+        ]
+
         await self.dispatcher.broadcast_detections(
             camera_id=self.camera_id,
             detections=self.latest_detections,
@@ -434,6 +542,7 @@ class CameraPipeline:
             fps=self.measured_fps,
             latency_ms=self.avg_inference_ms,
             visual_zones=visual_zones_payload,
+            intrusions=intrusions_payload,
         )
 
 
@@ -441,8 +550,19 @@ class PipelineManager:
     def __init__(self):
         self.pipelines: Dict[str, CameraPipeline] = {}
         self.ai_enabled: bool = True
-        self.perception_mode: str = getattr(settings, "DEFAULT_PERCEPTION_MODE", "QWEN_VL") # "QWEN_VL" | "YOLO" | "HYBRID"
+        self.perception_mode: str = getattr(settings, "DEFAULT_PERCEPTION_MODE", "YOLO") # "YOLO" | "QWEN_VL" | "HYBRID"
         self.inference_lock: asyncio.Lock = asyncio.Lock()
+        self._shared_detector = None
+
+    def get_shared_detector(self):
+        if self._shared_detector is None:
+            from app.cv.detector import Detector
+            self._shared_detector = Detector(
+                model_path=getattr(settings, "YOLO_MODEL_PATH", "yolov8n.pt"),
+                confidence_threshold=getattr(settings, "YOLO_CONFIDENCE", 0.25),
+                device=getattr(settings, "MODEL_DEVICE", "mps")
+            )
+        return self._shared_detector
 
     def set_ai_enabled(self, enabled: bool):
         self.ai_enabled = enabled
@@ -466,9 +586,12 @@ class PipelineManager:
             existing = self.pipelines[camera_id]
             if existing.source_uri == source_uri and existing.is_running:
                 return existing
-            existing.stop()
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(existing.stop())
+            except RuntimeError:
+                pass
 
-        from app.cv.detector import Detector
         from app.cv.evidence import EvidenceManager
         from app.events.event_manager import EventManager
         from app.alerts.dispatcher import dispatcher
@@ -476,7 +599,7 @@ class PipelineManager:
         pipeline = CameraPipeline(
             camera_id=camera_id,
             source_uri=source_uri,
-            detector=Detector(),
+            detector=self.get_shared_detector(),
             evidence_manager=EvidenceManager(),
             event_manager=EventManager(),
             alert_dispatcher=dispatcher,
@@ -484,11 +607,26 @@ class PipelineManager:
         self.register(pipeline)
         return pipeline
 
-    def start_camera(self, camera_id: str):
+    def start_camera(self, camera_id: str) -> bool:
         """Start or ensure a camera pipeline is running."""
         p = self.get(camera_id)
-        if p and not p.is_running:
-            p.start()
+        if p:
+            if not p.is_running:
+                p.start()
+            return True
+        return False
+
+    async def stop_camera(self, camera_id: str) -> bool:
+        """Stop camera pipeline and release hardware resources without unregistering."""
+        p = self.get(camera_id)
+        if p and p.is_running:
+            await p.stop()
+            return True
+        return False
+
+    def is_camera_running(self, camera_id: str) -> bool:
+        p = self.get(camera_id)
+        return bool(p and p.is_running)
 
     async def remove_camera(self, camera_id: str):
         """Remove and stop a camera pipeline."""

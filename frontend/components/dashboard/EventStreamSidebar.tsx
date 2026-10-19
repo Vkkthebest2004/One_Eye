@@ -1,6 +1,6 @@
 import React from 'react';
 import { SafetyEvent } from '@/types';
-import { ShieldAlert, CheckCircle2, Clock, Compass, ArrowUpRight, Flame, HardHat } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, Clock, Compass, ArrowUpRight, Flame, HardHat, Glasses } from 'lucide-react';
 
 interface EventStreamSidebarProps {
   alerts: SafetyEvent[];
@@ -26,7 +26,8 @@ export const EventStreamSidebar: React.FC<EventStreamSidebarProps> = ({
 
   const getHazardIcon = (hazard: string) => {
     if (hazard.includes('FIRE') || hazard.includes('SMOKE')) return <Flame className="w-3.5 h-3.5 text-severity-critical" />;
-    if (hazard.includes('HELMET') || hazard.includes('PPE')) return <HardHat className="w-3.5 h-3.5 text-severity-warning" />;
+    if (hazard.includes('GLASSES')) return <Glasses className="w-3.5 h-3.5 text-severity-warning" />;
+    if (hazard.includes('HELMET') || hazard.includes('PPE') || hazard.includes('VEST')) return <HardHat className="w-3.5 h-3.5 text-severity-warning" />;
     if (hazard.includes('PROXIMITY')) return <Compass className="w-3.5 h-3.5 text-primary" />;
     return <ShieldAlert className="w-3.5 h-3.5 text-severity-critical" />;
   };

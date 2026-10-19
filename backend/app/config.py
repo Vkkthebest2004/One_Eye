@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     APP_ENV: str = "development"
-    PORT: int = 8000
+    PORT: int = 8001
     HOST: str = "0.0.0.0"
 
     # Database
@@ -41,9 +41,9 @@ class Settings(BaseSettings):
     YOLO_MODEL_PATH: str = "yolo26n.pt"
     # A plant must provide a PPE-trained model before claiming model-grade PPE
     # detection.  The base COCO model only supplies person detection.
-    PPE_MODEL_PATH: str = ""
+    PPE_MODEL_PATH: str = "models/ppe_yolov8n.pt"
     YOLO_CONFIDENCE: float = 0.25
-    INFERENCE_FPS: int = 30
+    INFERENCE_FPS: int = 20
 
     # Evidence and Storage
     EVIDENCE_DIR: str = ""
@@ -55,10 +55,10 @@ class Settings(BaseSettings):
         return (self.base_dir / "evidence").resolve()
 
     # AI Reasoning & Perception Engine
-    DEFAULT_PERCEPTION_MODE: str = "QWEN_VL" # "QWEN_VL" | "YOLO" | "HYBRID"
-    ENABLE_QWEN: bool = True
+    DEFAULT_PERCEPTION_MODE: str = "YOLO" # "YOLO" | "QWEN_VL" | "HYBRID"
+    ENABLE_QWEN: bool = False
     QWEN_API_KEY: str = ""
-    QWEN_MODEL_NAME: str = "qwen2-vl-7b-instruct"
+    QWEN_MODEL_NAME: str = "qwen2.5-vl-72b-instruct"
 
     # Alert Channels
     ENABLE_TTS: bool = False

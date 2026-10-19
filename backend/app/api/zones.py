@@ -115,3 +115,99 @@ async def delete_zone(zone_id: str, db: AsyncSession = Depends(get_db)):
         pipeline.zone_engine.unregister_zone(zone_id)
 
     return None
+
+
+from pydantic import BaseModel
+
+class ZoneConfigImportRequest(BaseModel):
+    camera_id: str = "CAM_01"
+    name: Optional[str] = None
+    config_json: Optional[dict] = None
+    config_path: Optional[str] = None
+    severity: int = 90
+
+
+@router.post("/import-config", status_code=status.HTTP_201_CREATED)
+async def import_zone_config(payload: ZoneConfigImportRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Import a restricted zone directly from a zone_selector.py JSON configuration.
+    Supports either passing config_json payload or a filepath to zone_config.json.
+    """
+    import json
+    from pathlib import Path
+    cfg = payload.config_json
+
+    if not cfg:
+        target_path = Path(payload.config_path) if payload.config_path else Path("ZoneDetection/zone_config.json")
+        if not target_path.exists() and Path("backend/ZoneDetection/zone_config.json").exists():
+            target_path = Path("backend/ZoneDetection/zone_config.json")
+        if not target_path.exists():
+            raise HTTPException(status_code=400, detail=f"Zone config file not found at {target_path}")
+        try:
+            with open(target_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception as err:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON file: {err}")
+
+    raw_poly = cfg.get("polygon")
+    if not raw_poly or len(raw_poly) < 3:
+        raise HTTPException(status_code=400, detail="Zone config must contain at least 3 polygon points")
+
+    image_size = cfg.get("image_size", [1280, 720])
+    fw, fh = float(image_size[0]), float(image_size[1])
+
+    # Normalize polygon to 0.0-1.0
+    norm_poly = []
+    for pt in raw_poly:
+        px, py = float(pt[0]), float(pt[1])
+        if fw > 0 and fh > 0 and (px > 1.0 or py > 1.0):
+            norm_poly.append([round(min(1.0, max(0.0, px / fw)), 4), round(min(1.0, max(0.0, py / fh)), 4)])
+        else:
+            norm_poly.append([round(min(1.0, max(0.0, px)), 4), round(min(1.0, max(0.0, py)), 4)])
+
+    import time
+    zid = f"ZONE_{payload.camera_id}_{int(time.time())}"
+    zname = payload.name or f"Restricted: {Path(cfg.get('image', 'Custom Area')).stem}"
+
+    # Persist in Database
+    repo = ZoneRepository(db)
+    zone_db = Zone(
+        id=zid,
+        camera_id=payload.camera_id,
+        name=zname,
+        polygon=norm_poly,
+        severity=payload.severity,
+        allowed_classes=[],
+        policy={"zone_type": "NO_ENTRY", "warning_delay_seconds": 0.0, "critical_delay_seconds": 3.0},
+        active=True
+    )
+    created = await repo.create(zone_db)
+
+    # Register into running CV pipeline
+    target_cams = [payload.camera_id]
+    if payload.camera_id.startswith("CAM_MOB") or payload.camera_id == "CAM_MOBILE":
+        target_cams.extend(["CAM_MOBILE", "CAM_MOB_24151JEG"])
+
+    for cid in set(target_cams):
+        pipe = pipeline_manager.get_pipeline(cid)
+        if pipe:
+            pipe.zone_engine.register_zone(ZoneDefinition(
+                id=created.id,
+                name=created.name,
+                camera_id=cid,
+                polygon_points=[(p[0], p[1]) for p in created.polygon],
+                severity=created.severity,
+                active=created.active
+            ))
+
+    return {
+        "success": True,
+        "message": f"Successfully imported restricted zone '{created.name}'",
+        "zone": {
+            "id": created.id,
+            "name": created.name,
+            "camera_id": created.camera_id,
+            "polygon": created.polygon,
+            "severity": created.severity
+        }
+    }

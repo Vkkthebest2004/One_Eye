@@ -74,6 +74,7 @@ export interface LiveDetection {
   foot_anchor: number[];
   has_helmet?: boolean | null;
   has_vest?: boolean | null;
+  has_glasses?: boolean | null;
 }
 
 export interface LiveTrack {
@@ -86,6 +87,8 @@ export interface LiveTrack {
   state: string;
   has_helmet?: boolean | null;
   has_vest?: boolean | null;
+  has_glasses?: boolean | null;
+  glasses_confidence?: number | null;
   current_zone_id?: string | null;
   closest_machine_id?: string | null;
   closest_machine_distance_m?: number | null;

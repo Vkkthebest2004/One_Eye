@@ -3,6 +3,24 @@ import logging
 from typing import Optional
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Resource Optimization: Restrict thread storms on Apple Silicon / CPU
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
+os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
+
+try:
+    import torch
+    torch.set_num_threads(2)
+except Exception:
+    pass
+
+try:
+    import cv2
+    cv2.setNumThreads(2)
+except Exception:
+    pass
+
 from pydantic import BaseModel
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,9 +61,15 @@ async def lifespan(app: FastAPI):
     from app.db.seed import seed_initial_data
     await seed_initial_data()
 
-    # 3. Ensure directories exist
-    settings.get_evidence_dir().mkdir(parents=True, exist_ok=True)
+    # 3. Ensure directories exist & purge expired evidence snapshots
+    ev_dir = settings.get_evidence_dir()
+    ev_dir.mkdir(parents=True, exist_ok=True)
     (settings.base_dir / "videos" / "demo").mkdir(parents=True, exist_ok=True)
+    try:
+        from app.cv.evidence import EvidenceManager
+        EvidenceManager(str(ev_dir)).purge_old_evidence(settings.MAX_EVIDENCE_AGE_DAYS)
+    except Exception as e:
+        logger.warning(f"Startup evidence purge note: {e}")
 
     # 4. Bootstrap default camera pipeline
     try:
@@ -83,13 +107,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Note on camera startup: {e}")
 
-    try:
-        from app.cv.usb_mobile import mobile_manager as mm
-        mm.scan()
-    except Exception as e:
-        logger.warning(f"Initial mobile scan: {e}")
-
-    logger.info("ONE EYE Backend is ONLINE and ready.")
+    logger.info("ONE EYE Backend is ONLINE and ready with Laptop Webcam.")
     yield
     # Shutdown
     logger.info("Stopping ONE EYE Safety pipelines...")
@@ -204,7 +222,7 @@ async def get_perception_mode():
     """Return the active perception engine mode (YOLO, QWEN_VL, or HYBRID)."""
     mode = pipeline_manager.perception_mode
     label = (
-        "🧠 Qwen2-VL (Permanent Default)" if mode == "QWEN_VL"
+        "🧠 Qwen2.5-VL 7B (Permanent Default)" if mode == "QWEN_VL"
         else ("⚡ YOLOv8 (Ultra-Fast)" if mode == "YOLO"
         else "🔄 Hybrid Dual-AI")
     )

@@ -57,7 +57,7 @@ class FireSmokeDetector:
                         is_critical=True
                     ))
 
-            # Smoke mask (gray, low saturation, moderate value)
+            # Smoke mask (gray, low saturation, moderate value with turbulent fractal texture)
             lower_smoke = np.array([0, 0, 100])
             upper_smoke = np.array([180, 40, 210])
             smoke_mask = cv2.inRange(hsv, lower_smoke, upper_smoke)
@@ -67,13 +67,19 @@ class FireSmokeDetector:
                 area = cv2.contourArea(cnt)
                 if (area / total_pixels) >= (self.min_area_ratio * 3.0):
                     x, y, cw, ch = cv2.boundingRect(cnt)
-                    results.append(FireSmokeResult(
-                        hazard_type="SMOKE",
-                        confidence=0.88,
-                        bbox=(float(x), float(y), float(x + cw), float(y + ch)),
-                        area_pixels=float(area),
-                        is_critical=True
-                    ))
+                    # Texture variance check: flat walls/ceilings have low variance (< 35); smoke plumes have turbulence (> 65)
+                    roi = frame[y:y+ch, x:x+cw]
+                    if roi.size > 0:
+                        roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                        lap_var = float(cv2.Laplacian(roi_gray, cv2.CV_64F).var())
+                        if lap_var > 65.0:
+                            results.append(FireSmokeResult(
+                                hazard_type="SMOKE",
+                                confidence=0.88,
+                                bbox=(float(x), float(y), float(x + cw), float(y + ch)),
+                                area_pixels=float(area),
+                                is_critical=True
+                            ))
 
         except Exception as e:
             logger.error(f"Fire/Smoke detection error: {e}")

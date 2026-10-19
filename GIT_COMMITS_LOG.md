@@ -18,6 +18,13 @@ This document tracks all version-controlled milestones in the repository. If you
   - Locked danger perimeter to fixed normalized $(X, Y)$ coordinates ($0.0000 - 1.0000$).
   - Configured `DANGER_ZONE_REACHED` alert trigger: only fires when a person's physical foot contact point enters the marked coordinate perimeter.
 
+- **Commit `HEAD`**: `feat(system): camera power stop/start controls, PPE helmet & glasses accuracy, kinematic risk engine, and landing page`
+  - Added camera power stop, start, and toggle controls (`POST /api/cameras/{id}/stop`, `start`, `toggle`) with full hardware release (`CameraSource.release()`), turning off the camera sensor/LED and releasing capture threads via re-entrant locks.
+  - Implemented offline standby JPEG poster generator on `/api/cameras/{id}/stream` and per-camera UI controls with offline standby overlay in `MonitoringArray.tsx`.
+  - Added dedicated face detection and eye-region hardhat/glasses classification to eliminate false helmet detections from indoor backgrounds and ensure safety glasses compliance.
+  - Upgraded risk engine with continuous proximity exponential falloff, kinematic time-to-impact, and zone boundary hysteresis deadband.
+  - Designed minimal modern landing page and added automated service management scripts (`scripts/start.sh`, `scripts/stop.sh`).
+
 - **Commit `771a369`**: `feat(qwen-vl): enable all-object perception and dynamic hazard zone bounding`
   - Upgraded Qwen2-VL visual prompt and spatial grounding to detect all industrial entities: workers (`PERSON`), dangerous equipment (`MACHINE`), mobile equipment (`VEHICLE`), environmental hazards (`HAZARD_OBJECT`), and restricted areas (`DANGER_ZONE`).
   - Added automatic danger perimeter bounding: when hazardous machinery or danger zones are recognized, the system dynamically generates safety perimeters and tracks worker contact breaches.
@@ -37,6 +44,7 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`HEAD`** | `system` | Camera hardware stop/start controls, PPE accuracy, kinematic risk engine, and landing page |
 | **`1da1b30`** | `zones` | Resolve danger zone false breaches with strict foot ground-anchor intersection |
 | **`5dbae5e`** | `cv` | Integrate Qwen2-VL perception engine with hot-switching and precision person filtering |
 | **`001497f`** | `perception` | Set Qwen2-VL as permanent default vision engine with high-throughput processing |

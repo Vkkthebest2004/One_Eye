@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Zone } from '@/types';
-import { getMediaUrl, createZone, deleteZone } from '@/lib/api';
-import { ShieldAlert, Plus, Trash2, CheckCircle2, RotateCcw, Save, Camera as CameraIcon, Play, Square, Pentagon, AlertTriangle } from 'lucide-react';
+import { getMediaUrl, createZone, deleteZone, importZoneConfig } from '@/lib/api';
+import { ShieldAlert, Plus, Trash2, CheckCircle2, RotateCcw, Save, Camera as CameraIcon, Play, Square, Pentagon, AlertTriangle, Upload } from 'lucide-react';
 
 interface ZonePolygonEditorProps {
   cameras: Camera[];
@@ -27,6 +27,28 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImportConfigFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setStatusMsg('Reading zone config file...');
+      const text = await file.text();
+      const configJson = JSON.parse(text);
+      const res = await importZoneConfig({
+        config_json: configJson,
+        camera_id: selectedCamId,
+        zone_name: zoneName || 'Restricted Safety Zone',
+      });
+      setStatusMsg(`✅ Imported zone from ${file.name} (${res.polygon_points} points)!`);
+      onZonesUpdated();
+    } catch (err: any) {
+      setStatusMsg(`Import failed: ${err.message}`);
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Filter existing zones for selected camera
   const cameraZones = zones.filter((z) => z.camera_id === selectedCamId);
@@ -473,6 +495,26 @@ export const ZonePolygonEditor: React.FC<ZonePolygonEditorProps> = ({
               <Save className="w-3.5 h-3.5" />
               Save Fixed Coordinate Zone
             </button>
+
+            {/* Quick 1-Click Import from zone_config.json */}
+            <div className="pt-2 border-t border-outline-variant/60">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImportConfigFile}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full py-2 px-3 rounded bg-surface-container-high hover:bg-surface-container-highest text-cyan-300 border border-cyan-500/30 text-[11px] font-mono flex items-center justify-center gap-1.5 transition cursor-pointer"
+                title="Import zone_config.json created by zone_selector.py"
+              >
+                <Upload className="w-3.5 h-3.5 text-cyan-400" />
+                📂 Import zone_config.json
+              </button>
+            </div>
           </div>
 
           {/* Active Saved Zones for Camera */}

@@ -87,9 +87,10 @@ class AlertDispatcher:
         tracks: List[Dict],
         fps: float,
         latency_ms: float = 0.0,
-        visual_zones: Optional[List[Dict]] = None
+        visual_zones: Optional[List[Dict]] = None,
+        intrusions: Optional[List[Dict]] = None
     ):
-        """Alias for real-time computer vision frame telemetry with dynamic visual anchor zones"""
+        """Alias for real-time computer vision frame telemetry with dynamic visual anchor zones & intrusions"""
         payload = {
             "type": "DETECTION_UPDATE",
             "camera_id": camera_id,
@@ -101,6 +102,8 @@ class AlertDispatcher:
         }
         if visual_zones:
             payload["visual_zones"] = visual_zones
+        if intrusions is not None:
+            payload["intrusions"] = intrusions
         await ws_manager.broadcast(payload)
 
     async def broadcast_camera_status(self, camera_id: str, status: str, fps: float):

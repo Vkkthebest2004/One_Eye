@@ -12,7 +12,7 @@ export default function MobileCamPage() {
   const wsRef = useRef<WebSocket | null>(null);
 
   // WebSocket Live Telemetry for Mobile Overlay
-  const { cameraTracks, visualZones, activeAlerts } = useOneEyeWebSocket();
+  const { cameraTracks, cameraDetections, visualZones, cameraIntrusions, activeAlerts } = useOneEyeWebSocket();
 
   const [isStreaming, setIsStreaming] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -174,7 +174,9 @@ export default function MobileCamPage() {
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
       const host = window.location.hostname || 'localhost';
-      const wsUrl = `ws://${host}:8001/api/mobile/ws/stream/CAM_MOBILE`;
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const port = process.env.NEXT_PUBLIC_BACKEND_PORT || '8001';
+      const wsUrl = `${proto}//${host}:${port}/api/mobile/ws/stream/CAM_MOBILE`;
 
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
@@ -410,13 +412,18 @@ export default function MobileCamPage() {
     canvas.height = height;
     ctx.clearRect(0, 0, width, height);
 
-    // 1. Draw dynamically tracked visual danger zones on the phone
+    // 1. Draw dynamically tracked visual restricted zones on the phone
     const zones = visualZones['CAM_MOBILE'] || visualZones['CAM_MOB_24151JEG'] || [];
+    const intrusions = cameraIntrusions['CAM_MOBILE'] || cameraIntrusions['CAM_MOB_24151JEG'] || [];
+
     zones.forEach((z: any) => {
       // ONLY draw if the object is ACTUALLY recognized in view!
       if (!z.is_visible) return;
       const poly = z.polygon || [];
       if (!poly || poly.length < 3) return;
+
+      const zoneIntrusion = intrusions.find((i: any) => i.zone_name === z.name || i.zone_id === z.id);
+      const isIntruded = !!zoneIntrusion;
 
       ctx.save();
       ctx.beginPath();
@@ -428,27 +435,109 @@ export default function MobileCamPage() {
       });
       ctx.closePath();
 
-      // Pulsating Danger Glow Fill
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
-      ctx.fill();
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = '#ef4444';
-      ctx.setLineDash([6, 4]);
-      ctx.stroke();
+      if (isIntruded) {
+        // Glowing Red Breach Fill & Alert Border
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.40)';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ef4444';
+        ctx.setLineDash([]);
+        ctx.stroke();
 
-      // Zone Banner
-      const [firstX, firstY] = poly[0];
-      const tagText = `🔒 DANGER ZONE: ${(z.name || 'FORBIDDEN').toUpperCase()}`;
-      ctx.font = 'bold 11px monospace';
-      const tagW = ctx.measureText(tagText).width + 10;
-      ctx.fillStyle = '#b91c1c';
-      ctx.fillRect(firstX * width, Math.max(0, firstY * height - 16), tagW, 16);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(tagText, firstX * width + 5, Math.max(12, firstY * height - 4));
+        // Zone Intrusion Banner
+        const [firstX, firstY] = poly[0];
+        const tagText = `🚨 INTRUSION DETECTED - RESTRICTED ZONE TOUCHED`;
+        ctx.font = 'bold 11px monospace';
+        const tagW = ctx.measureText(tagText).width + 12;
+        ctx.fillStyle = '#dc2626';
+        ctx.fillRect(firstX * width, Math.max(0, firstY * height - 18), tagW, 18);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(tagText, firstX * width + 6, Math.max(13, firstY * height - 4));
+
+        // Draw precision intrusion contact points
+        const contactPoints = zoneIntrusion.intrusion_points || zoneIntrusion.norm_contact_points || [];
+        if (Array.isArray(contactPoints)) {
+          contactPoints.forEach(([ix, iy]: [number, number]) => {
+            const cx = ix * width;
+            const cy = iy * height;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ef4444';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+          });
+        }
+      } else {
+        // Safe Marked "Not Allowed" Restricted Zone (Amber border, subtle fill)
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.12)';
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+
+        // Zone Tag
+        const [firstX, firstY] = poly[0];
+        const tagText = `🔒 NOT ALLOWED: ${(z.name || 'RESTRICTED').toUpperCase()}`;
+        ctx.font = 'bold 11px monospace';
+        const tagW = ctx.measureText(tagText).width + 10;
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(firstX * width, Math.max(0, firstY * height - 16), tagW, 16);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(tagText, firstX * width + 5, Math.max(12, firstY * height - 4));
+      }
       ctx.restore();
     });
 
-    // 2. Draw live detected people and breach status on the phone
+    // 2. Draw live detected multi-category objects (clean labels, no false open-space hazards)
+    const dets = cameraDetections['CAM_MOBILE'] || cameraDetections['CAM_MOB_24151JEG'] || [];
+    dets.forEach((det: any) => {
+      const cat = (det.category || 'OBJECT').toUpperCase();
+      if (cat === 'PERSON') return;
+
+      let x = 0, y = 0, w = 0, h = 0;
+      if (det.norm_bbox && det.norm_bbox.length === 4) {
+        const [nx1, ny1, nx2, ny2] = det.norm_bbox;
+        x = nx1 * width;
+        y = ny1 * height;
+        w = Math.max(16, (nx2 - nx1) * width);
+        h = Math.max(18, (ny2 - ny1) * height);
+      } else if (det.bbox && det.bbox.length === 4) {
+        const [bx1, by1, bx2, by2] = det.bbox;
+        x = bx1 * width;
+        y = by1 * height;
+        w = Math.max(16, (bx2 - bx1) * width);
+        h = Math.max(18, (by2 - by1) * height);
+      }
+
+      let color = '#06b6d4';
+      let icon = '📦';
+      if (cat === 'ELECTRONICS') { color = '#06b6d4'; icon = '📱'; }
+      else if (cat === 'HAZARD_OBJECT') { color = '#f59e0b'; icon = '⚠️'; }
+      else if (cat === 'MACHINE') { color = '#f59e0b'; icon = '⚙️'; }
+      else if (cat === 'CONTAINER') { color = '#10b981'; icon = '🎒'; }
+      else if (cat === 'FURNITURE') { color = '#8b5cf6'; icon = '🪑'; }
+      else if (cat === 'FACE') { color = '#ec4899'; icon = '👤'; }
+
+      ctx.save();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = color;
+      ctx.strokeRect(x, y, w, h);
+
+      // Top Tag
+      const label = `${icon} ${(det.class_name || cat).toUpperCase()} ${Math.round((det.confidence || 0.85) * 100)}%`;
+      ctx.font = 'bold 10px monospace';
+      const tagW = ctx.measureText(label).width + 8;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, Math.max(0, y - 15), tagW, 15);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x + 4, Math.max(11, y - 4));
+      ctx.restore();
+    });
+
+    // 3. Draw live detected people and breach status on the phone
     const tracks = cameraTracks['CAM_MOBILE'] || cameraTracks['CAM_MOB_24151JEG'] || [];
     tracks.forEach((track: any) => {
       let x = 0, y = 0, w = 0, h = 0;
@@ -478,7 +567,7 @@ export default function MobileCamPage() {
       ctx.fillText(tagText, x + 4, Math.max(12, y - 4));
       ctx.restore();
     });
-  }, [cameraTracks, visualZones]);
+  }, [cameraTracks, cameraDetections, visualZones, cameraIntrusions]);
 
   return (
     <div className="fixed inset-0 bg-black flex flex-col justify-between text-white font-sans select-none overflow-hidden">

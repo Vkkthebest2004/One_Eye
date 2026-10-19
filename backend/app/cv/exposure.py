@@ -80,10 +80,11 @@ class ExposureTracker:
         else:
             if key in self.records and self.records[key].is_active:
                 rec = self.records[key]
-                # Check if inactive timeout exceeded
+                # Check if inactive timeout exceeded -> Hazard cleared
                 if now - rec.last_seen > self.inactivity_timeout_sec:
                     rec.is_active = False
-                    rec.duration_seconds = round(rec.last_seen - rec.start_time, 1)
+                    rec.duration_seconds = 0.0
+                    rec.escalation_level = 0
                 return rec
             
             # Return dummy inactive record if not tracked
@@ -97,6 +98,12 @@ class ExposureTracker:
                 is_active=False,
                 escalation_level=0
             )
+
+    def reset(self, camera_id: str, worker_id: int, hazard_key: Optional[str] = None):
+        """Explicitly reset and clear exposure records for a worker"""
+        to_del = [k for k in self.records if k[0] == camera_id and k[1] == worker_id and (hazard_key is None or k[2] == hazard_key)]
+        for k in to_del:
+            del self.records[k]
 
     def cleanup_old_records(self, max_age_seconds: float = 300.0, current_time: Optional[float] = None):
         now = current_time or time.time()

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertOctagon, CheckCircle2, Clock, MapPin, User, ShieldAlert, ArrowUpRight, Flame, HardHat, Compass } from 'lucide-react';
+import { AlertOctagon, CheckCircle2, Clock, MapPin, User, ShieldAlert, ArrowUpRight, Flame, HardHat, Compass, Glasses } from 'lucide-react';
 import { SafetyEvent } from '@/types';
 
 interface ActiveAlertsPanelProps {
@@ -83,7 +83,8 @@ const AlertCard: React.FC<AlertCardProps> = ({
 
   const getHazardIcon = (hazard: string) => {
     if (hazard.includes('FIRE') || hazard.includes('SMOKE')) return <Flame className="w-3.5 h-3.5" />;
-    if (hazard.includes('HELMET') || hazard.includes('PPE')) return <HardHat className="w-3.5 h-3.5" />;
+    if (hazard.includes('GLASSES')) return <Glasses className="w-3.5 h-3.5" />;
+    if (hazard.includes('HELMET') || hazard.includes('PPE') || hazard.includes('VEST')) return <HardHat className="w-3.5 h-3.5" />;
     if (hazard.includes('PROXIMITY')) return <Compass className="w-3.5 h-3.5" />;
     return <AlertOctagon className="w-3.5 h-3.5" />;
   };

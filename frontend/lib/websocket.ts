@@ -13,6 +13,7 @@ export function useOneEyeWebSocket() {
   const [cameraDetections, setCameraDetections] = useState<Record<string, LiveDetection[]>>({});
   const [cameraFps, setCameraFps] = useState<Record<string, number>>({});
   const [visualZones, setVisualZones] = useState<Record<string, any[]>>({});
+  const [cameraIntrusions, setCameraIntrusions] = useState<Record<string, any[]>>({});
   const [lastEvent, setLastEvent] = useState<SafetyEvent | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -110,6 +111,11 @@ export function useOneEyeWebSocket() {
               if (msg.visual_zones) {
                 setVisualZones((prev) => ({ ...prev, [camId]: msg.visual_zones }));
               }
+              if (msg.intrusions) {
+                setCameraIntrusions((prev) => ({ ...prev, [camId]: msg.intrusions }));
+              } else {
+                setCameraIntrusions((prev) => ({ ...prev, [camId]: [] }));
+              }
             }
           } else if (msg.type === 'CAMERA_STATUS') {
             if (msg.camera_id && msg.fps !== undefined) {
@@ -141,6 +147,7 @@ export function useOneEyeWebSocket() {
     cameraDetections,
     cameraFps,
     visualZones,
+    cameraIntrusions,
     lastEvent,
     setActiveAlerts,
   };

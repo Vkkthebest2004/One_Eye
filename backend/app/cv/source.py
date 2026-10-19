@@ -1,6 +1,7 @@
 import cv2
 import time
 import logging
+import threading
 from typing import Optional, Tuple, Generator
 import numpy as np
 
@@ -15,12 +16,14 @@ class CameraSource:
     - RTSP / HTTP IP camera streams (rtsp://...)
     """
     def __init__(self, camera_id: str, source: str, loop: bool = True):
+        self._lock = threading.RLock()
         self.camera_id = camera_id
         self.source_str = str(source)
         self.loop = loop
         self.cap: Optional[cv2.VideoCapture] = None
         self.is_numeric = self.source_str.isdigit()
 
+        clean_src = self.source_str.strip().lower()
         if self.is_numeric:
             self.actual_source = int(self.source_str)
         elif self.source_str.startswith("uvc_"):
@@ -28,6 +31,16 @@ class CameraSource:
                 self.actual_source = int(self.source_str.replace("uvc_", ""))
             except ValueError:
                 self.actual_source = 0
+            self.is_numeric = True
+        elif clean_src in ("webcam", "laptop_webcam", "facetime", "built-in", "builtin", "mac_webcam", "0") or clean_src.startswith("webcam:"):
+            try:
+                if ":" in clean_src:
+                    self.actual_source = int(clean_src.split(":", 1)[1])
+                else:
+                    self.actual_source = 0
+            except ValueError:
+                self.actual_source = 0
+            self.is_numeric = True
         elif self.source_str.startswith("mobile:"):
             self.actual_source = self.source_str
         else:
@@ -99,9 +112,37 @@ class CameraSource:
                 return False
 
             if isinstance(self.actual_source, int):
-                logger.info(f"[{self.camera_id}] Skipping local hardware webcam index {self.actual_source} to prevent webcam activation.")
-                self.connected = False
-                return False
+                logger.info(f"[{self.camera_id}] Connecting to laptop webcam (device index {self.actual_source})...")
+                if self.cap is not None:
+                    self.cap.release()
+                import platform
+                if platform.system() == "Darwin":
+                    self.cap = cv2.VideoCapture(self.actual_source, cv2.CAP_AVFOUNDATION)
+                else:
+                    self.cap = cv2.VideoCapture(self.actual_source)
+
+                if not self.cap.isOpened():
+                    logger.warning(f"[{self.camera_id}] Could not open webcam index {self.actual_source} via native backend, trying default backend...")
+                    self.cap = cv2.VideoCapture(self.actual_source)
+
+                if not self.cap.isOpened():
+                    logger.warning(f"[{self.camera_id}] Laptop webcam index {self.actual_source} unavailable.")
+                    self.connected = False
+                    return False
+
+                # Configure 1280x720 30FPS for optimal real-time AI inference
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+
+                self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30.0
+                if self.fps <= 0 or np.isnan(self.fps):
+                    self.fps = 30.0
+                self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 1280
+                self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 720
+                self.connected = True
+                logger.info(f"[{self.camera_id}] Connected to laptop webcam ({self.width}x{self.height} @ {self.fps:.1f} FPS)")
+                return True
 
             if self.cap is not None:
                 self.cap.release()
@@ -136,98 +177,103 @@ class CameraSource:
         Returns: (success, frame, timestamp)
         """
         now = time.time()
+        with self._lock:
+            # Check RTSPCamera FFmpeg stream first
+            if self.rtsp_cam and self.rtsp_cam.is_alive():
+                ok, frame, ts = self.rtsp_cam.read()
+                if ok and frame is not None:
+                    self.frame_count += 1
+                    self.last_frame_time = ts
+                    self.connected = True
+                    return True, frame, ts
 
-        # Check RTSPCamera FFmpeg stream first
-        if self.rtsp_cam and self.rtsp_cam.is_alive():
-            ok, frame, ts = self.rtsp_cam.read()
-            if ok and frame is not None:
-                self.frame_count += 1
-                self.last_frame_time = ts
-                self.connected = True
-                return True, frame, ts
+            if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web" or self.actual_source.startswith("mobile:")):
+                from app.cv.usb_mobile import mobile_manager
+                # Universal lookup across all mobile aliases and device serials
+                serial_part = self.actual_source.split(":", 1)[1] if ":" in self.actual_source else ""
+                web_res = (
+                    mobile_manager.get_web_frame(self.camera_id)
+                    or mobile_manager.get_web_frame("CAM_MOBILE")
+                    or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
+                    or (mobile_manager.get_web_frame(serial_part) if serial_part else None)
+                )
+                if web_res:
+                    frame, ts = web_res
+                    self.frame_count += 1
+                    self.last_frame_time = ts
+                    self.connected = True
+                    return True, frame, ts
 
-        if isinstance(self.actual_source, str) and (self.actual_source.startswith("mobile_web:") or self.actual_source == "mobile_web" or self.actual_source.startswith("mobile:")):
-            from app.cv.usb_mobile import mobile_manager
-            # Universal lookup across all mobile aliases and device serials
-            serial_part = self.actual_source.split(":", 1)[1] if ":" in self.actual_source else ""
-            web_res = (
-                mobile_manager.get_web_frame(self.camera_id)
-                or mobile_manager.get_web_frame("CAM_MOBILE")
-                or mobile_manager.get_web_frame("CAM_MOB_24151JEG")
-                or (mobile_manager.get_web_frame(serial_part) if serial_part else None)
-            )
-            if web_res:
-                frame, ts = web_res
-                self.frame_count += 1
-                self.last_frame_time = ts
-                self.connected = True
-                return True, frame, ts
+                if serial_part:
+                    mob_src = mobile_manager.get_source(serial_part)
+                    if mob_src:
+                        ok, frame, ts = mob_src.read()
+                        if ok:
+                            self.frame_count += 1
+                            self.last_frame_time = ts
+                            self.connected = True
+                            return ok, frame, ts
 
-            if serial_part:
-                mob_src = mobile_manager.get_source(serial_part)
-                if mob_src:
-                    ok, frame, ts = mob_src.read()
-                    if ok:
-                        self.frame_count += 1
-                        self.last_frame_time = ts
-                        self.connected = True
-                        return ok, frame, ts
-
-            return False, None, now
-
-        if getattr(self, "_synthetic", False):
-            import datetime
-            frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-            frame[:] = (20, 26, 30)
-            for gy in range(0, 720, 90):
-                cv2.line(frame, (0, gy), (1280, gy), (32, 42, 48), 1)
-            for gx in range(0, 1280, 120):
-                cv2.line(frame, (gx, 0), (gx, 720), (32, 42, 48), 1)
-            ts_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
-            cv2.putText(frame, f"ONE EYE CCTV // {self.camera_id}", (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 220, 255), 2)
-            cv2.putText(frame, f"LIVE REC [●] {ts_str} UTC", (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 150), 1)
-            self.frame_count += 1
-            self.last_frame_time = now
-            return True, frame, now
-
-        if not self.connected or self.cap is None:
-            if (now - self._last_reconnect_attempt) < 4.0:
-                return False, None, now
-            self._last_reconnect_attempt = now
-            if not self.connect():
                 return False, None, now
 
-        ret, frame = self.cap.read()
-        timestamp = time.time()
+            if getattr(self, "_synthetic", False):
+                import datetime
+                frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+                frame[:] = (20, 26, 30)
+                for gy in range(0, 720, 90):
+                    cv2.line(frame, (0, gy), (1280, gy), (32, 42, 48), 1)
+                for gx in range(0, 1280, 120):
+                    cv2.line(frame, (gx, 0), (gx, 720), (32, 42, 48), 1)
+                ts_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")[:-4]
+                cv2.putText(frame, f"ONE EYE CCTV // {self.camera_id}", (30, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 220, 255), 2)
+                cv2.putText(frame, f"LIVE REC [●] {ts_str} UTC", (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 150), 1)
+                self.frame_count += 1
+                self.last_frame_time = now
+                return True, frame, now
 
-        if not ret:
-            # End of video reached; loop if configured
-            if self.loop and not self.is_numeric and not str(self.actual_source).startswith("uvc_"):
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                ret, frame = self.cap.read()
-                if not ret:
+            if not self.connected or self.cap is None:
+                if (now - self._last_reconnect_attempt) < 4.0:
+                    return False, None, now
+                self._last_reconnect_attempt = now
+                if not self.connect():
+                    return False, None, now
+
+            ret, frame = self.cap.read()
+            timestamp = time.time()
+
+            if not ret or frame is None:
+                # End of video reached; loop if configured
+                if self.loop and not self.is_numeric and not str(self.actual_source).startswith("uvc_"):
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, frame = self.cap.read()
+                    if not ret or frame is None:
+                        self.connected = False
+                        return False, None, timestamp
+                else:
                     self.connected = False
                     return False, None, timestamp
-            else:
-                self.connected = False
-                return False, None, timestamp
 
-        self.frame_count += 1
-        self.last_frame_time = timestamp
-        return True, frame, timestamp
+            # Standardize webcam frame resolution to 1280x720 for consistent AI bounding geometry
+            if frame is not None and (frame.shape[1] != 1280 or frame.shape[0] != 720):
+                frame = cv2.resize(frame, (1280, 720))
+
+            self.frame_count += 1
+            self.last_frame_time = timestamp
+            return True, frame, timestamp
 
     def release(self):
-        if self.rtsp_cam:
-            self.rtsp_cam.stop()
-            self.rtsp_cam = None
-        if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+        with self._lock:
+            if self.rtsp_cam:
+                self.rtsp_cam.stop()
+                self.rtsp_cam = None
+            if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):
+                self.connected = False
+                return
+            if self.cap is not None:
+                self.cap.release()
+                self.cap = None
             self.connected = False
-            return
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
-        self.connected = False
-        logger.info(f"[{self.camera_id}] Camera source released")
+            logger.info(f"[{self.camera_id}] Camera source released")
 
     def is_alive(self) -> bool:
         if isinstance(self.actual_source, str) and self.actual_source.startswith("mobile:"):

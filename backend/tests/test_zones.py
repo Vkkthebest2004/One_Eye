@@ -67,3 +67,40 @@ def test_zone_foot_anchor_state_transitions():
     assert len(events_t2) == 1
     assert events_t2[0].state == "EXITED"
     assert events_t2[0].inside_duration_sec == 8.0
+
+
+def test_zone_load_from_config():
+    engine = ZoneEngine()
+    config = {
+        "image": "reference.jpg",
+        "image_size": [1920, 1080],
+        "polygon": [[192, 108], [960, 108], [960, 540], [192, 540]],
+    }
+    zone = engine.load_from_config(config, camera_id="CAM_01", zone_name="CNC Restricted")
+    assert zone is not None
+    assert zone.name == "CNC Restricted"
+    assert zone.camera_id == "CAM_01"
+    # Check normalization
+    assert len(zone.polygon_points) == 4
+    assert pytest.approx(zone.polygon_points[0][0], 0.01) == 0.1
+    assert pytest.approx(zone.polygon_points[0][1], 0.01) == 0.1
+    assert pytest.approx(zone.polygon_points[1][0], 0.01) == 0.5
+    assert pytest.approx(zone.polygon_points[2][1], 0.01) == 0.5
+
+
+def test_intrusion_polygon_scaling_and_point_test():
+    import numpy as np
+    from app.cv.intrusion import scale_polygon, point_in_zone
+
+    # Normalized polygon
+    poly = [(0.2, 0.2), (0.8, 0.2), (0.8, 0.8), (0.2, 0.8)]
+    scaled = scale_polygon(poly, (1000, 1000))
+    assert scaled.shape == (4, 2)
+    assert scaled[0][0] == 200
+    assert scaled[0][1] == 200
+
+    # Inside
+    assert point_in_zone((500, 500), scaled) is True
+    # Outside
+    assert point_in_zone((100, 100), scaled) is False
+    assert point_in_zone((900, 500), scaled) is False

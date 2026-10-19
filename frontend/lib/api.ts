@@ -55,6 +55,32 @@ export async function deleteCamera(id: string): Promise<void> {
   await fetchJson<void>(`/api/cameras/${id}`, { method: 'DELETE' });
 }
 
+export async function useWebcam(cameraId: string = 'CAM_01'): Promise<any> {
+  return fetchJson(`/api/cameras/use-webcam?camera_id=${cameraId}`, { method: 'POST' });
+}
+
+export async function useDemoVideo(cameraId: string = 'CAM_01'): Promise<any> {
+  return fetchJson(`/api/cameras/use-demo-video?camera_id=${cameraId}`, { method: 'POST' });
+}
+
+export async function stopCameraFeed(cameraId: string): Promise<{ success: boolean; status: string; message: string }> {
+  return fetchJson<{ success: boolean; status: string; message: string }>(`/api/cameras/${cameraId}/stop`, {
+    method: 'POST',
+  });
+}
+
+export async function startCameraFeed(cameraId: string): Promise<{ success: boolean; status: string; message: string }> {
+  return fetchJson<{ success: boolean; status: string; message: string }>(`/api/cameras/${cameraId}/start`, {
+    method: 'POST',
+  });
+}
+
+export async function toggleCameraFeed(cameraId: string): Promise<{ success: boolean; status: string; message: string }> {
+  return fetchJson<{ success: boolean; status: string; message: string }>(`/api/cameras/${cameraId}/toggle`, {
+    method: 'POST',
+  });
+}
+
 // ZONES
 export async function getZones(cameraId?: string): Promise<Zone[]> {
   const query = cameraId ? `?camera_id=${cameraId}` : '';
@@ -70,6 +96,18 @@ export async function createZone(data: Partial<Zone>): Promise<Zone> {
 
 export async function deleteZone(id: string): Promise<void> {
   await fetchJson<void>(`/api/zones/${id}`, { method: 'DELETE' });
+}
+
+export async function importZoneConfig(data: {
+  config_json?: any;
+  config_path?: string;
+  camera_id?: string;
+  zone_name?: string;
+}): Promise<{ status: string; zone_id: string; zone_name: string; polygon_points: number }> {
+  return fetchJson('/api/zones/import-config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 // MACHINES

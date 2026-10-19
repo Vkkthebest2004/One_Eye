@@ -108,7 +108,16 @@ class ConnectResponse(BaseModel):
 
 @router.get("/status", response_model=MobileStatusResponse)
 async def get_mobile_status():
-    """Return the aggregate status of the mobile USB subsystem without disruptive hardware re-scanning."""
+    """Return the aggregate status of the mobile USB subsystem, auto-syncing if devices changed."""
+    if mobile_manager.adb.available:
+        try:
+            current_serials = {d["serial"] for d in mobile_manager.adb.list_devices()}
+            known_adb = {d.serial for d in mobile_manager.devices.values() if d.os.value == "android"}
+            if current_serials != known_adb:
+                await asyncio.to_thread(mobile_manager.scan)
+        except Exception:
+            pass
+
     devices = list(mobile_manager.devices.values())
     return MobileStatusResponse(
         adb_available=mobile_manager.adb.available,
@@ -131,7 +140,16 @@ async def scan_devices():
 
 @router.get("/devices", response_model=list[DeviceResponse])
 async def list_devices():
-    """List all currently known mobile devices (without a fresh scan)."""
+    """List all currently known mobile devices, auto-syncing with connected ADB devices."""
+    if mobile_manager.adb.available:
+        try:
+            current_serials = {d["serial"] for d in mobile_manager.adb.list_devices()}
+            known_adb = {d.serial for d in mobile_manager.devices.values() if d.os.value == "android"}
+            if current_serials != known_adb:
+                await asyncio.to_thread(mobile_manager.scan)
+        except Exception:
+            pass
+
     return [
         DeviceResponse(**d)
         for d in mobile_manager.get_all_status()
@@ -433,6 +451,9 @@ async def mobile_stream_ws(websocket: WebSocket, camera_id: str = "CAM_MOBILE"):
                 for dev_serial in list(mobile_manager.devices.keys()):
                     mobile_manager.update_web_frame(dev_serial, frame)
                     mobile_manager.update_web_frame(f"CAM_MOB_{dev_serial[:8].upper()}", frame)
+                    if dev_serial in mobile_manager.devices:
+                        mobile_manager.devices[dev_serial].is_connected = True
+                        mobile_manager.devices[dev_serial].connection_mode = ConnectionMode.WEB_STREAM
 
                 for pid in ["CAM_MOBILE", "CAM_MOB_24151JEG", camera_id]:
                     p = pipeline_manager.get_pipeline(pid)

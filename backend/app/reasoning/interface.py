@@ -43,7 +43,7 @@ class QwenReasoner(VisionReasoner):
         distance_m = context.get("distance_m")
         zone_name = context.get("zone_name", "Restricted Area")
 
-        # 1. If API Key is configured, query live Qwen2-VL Model
+        # 1. If API Key is configured, query live Qwen2.5-VL Model (Cloud)
         if self.api_key:
             try:
                 # Downscale for high token efficiency
@@ -86,10 +86,46 @@ class QwenReasoner(VisionReasoner):
                         return {
                             "status": "COMPLETED",
                             "explanation": explanation,
-                            "reasoning_model": f"Qwen2-VL ({self.model_name})"
+                            "reasoning_model": f"Qwen2.5-VL Cloud ({self.model_name})"
                         }
             except Exception as e:
-                logger.warning(f"Qwen2-VL live API note ({e}); generating cognitive perception synthesis.")
+                logger.warning(f"Qwen2.5-VL live API note ({e}); checking local vision reasoner.")
+
+        # 2. Local Ollama Qwen2.5-VL 7B Reasoning (Zero API Key Required)
+        try:
+            h, w = frame.shape[:2]
+            small_frame = cv2.resize(frame, (512, int(512 * h / w))) if w > 512 else frame
+            _, buffer = cv2.imencode('.jpg', small_frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            b64_img = base64.b64encode(buffer).decode('utf-8')
+
+            prompt = (
+                f"Industrial Safety Analysis: Worker #{worker_id} hazard: {hazard_type} in {zone_name}. "
+                "Briefly describe the safety risk and action in 1-2 clear sentences."
+            )
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    "http://localhost:11434/api/chat",
+                    json={
+                        "model": "qwen2.5vl:7b",
+                        "messages": [{
+                            "role": "user",
+                            "content": prompt,
+                            "images": [b64_img]
+                        }],
+                        "stream": False
+                    }
+                )
+                if resp.status_code == 200:
+                    explanation = resp.json().get("message", {}).get("content", "").strip()
+                    if explanation:
+                        return {
+                            "status": "COMPLETED",
+                            "explanation": explanation,
+                            "reasoning_model": "Qwen2.5-VL 7B Local (Ollama)"
+                        }
+        except Exception as oe:
+            logger.debug(f"Local Ollama Qwen reasoner note: {oe}")
 
         # 2. Deep Contextual Cognitive Synthesis Engine
         # Synthesizes fine-grained hazard reasoning based on spatial geometry & worker state

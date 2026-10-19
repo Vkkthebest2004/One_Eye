@@ -92,10 +92,34 @@ class EvidenceManager:
             cv2.rectangle(annotated, (0, h - 35), (w, h), (15, 15, 15), -1)
             cv2.putText(annotated, f"HAZARDS: {hazards_str}", (15, bot_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-            # Write image to disk
-            cv2.imwrite(str(file_path), annotated)
+            # Write image to disk with optimal compression to minimize disk footprint
+            cv2.imwrite(str(file_path), annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
             logger.info(f"Captured evidence snapshot for {event_id} -> {file_path}")
         except Exception as e:
             logger.error(f"Failed to capture evidence for {event_id}: {e}")
 
         return relative_path, str(file_path)
+
+    def purge_old_evidence(self, max_age_days: int = 30) -> int:
+        """
+        Delete forensic evidence snapshot files older than max_age_days
+        to prevent disk and filesystem cache bloat. Returns count of files deleted.
+        """
+        cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=max_age_days)
+        cutoff_ts = cutoff.timestamp()
+        removed_count = 0
+        try:
+            for p in self.base_dir.rglob("*.jpg"):
+                if p.is_file():
+                    try:
+                        if p.stat().st_mtime < cutoff_ts:
+                            p.unlink()
+                            removed_count += 1
+                    except Exception:
+                        pass
+            if removed_count > 0:
+                logger.info(f"Purged {removed_count} evidence snapshots older than {max_age_days} days.")
+        except Exception as e:
+            logger.warning(f"Error purging old evidence: {e}")
+        return removed_count
+
