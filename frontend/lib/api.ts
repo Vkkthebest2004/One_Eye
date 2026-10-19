@@ -350,3 +350,82 @@ export function getMediaUrl(path?: string | null): string {
   if (path.startsWith('http')) return path;
   return `${getApiBase()}${path.startsWith('/') ? '' : '/'}${path}`;
 }
+
+// ---------------------------------------------------------------------------
+// 60-Second Video Retrospective & Sequence Intelligence
+// ---------------------------------------------------------------------------
+export interface TimelineEvent {
+  timestamp_sec: number;
+  timestamp_str: string;
+  label: string;
+  description: string;
+  category: 'ACTION' | 'PROCEDURE' | 'HAZARD' | 'STATUS';
+  risk_level: 'SAFE' | 'WARNING' | 'DANGER';
+  keyframe_index: number;
+  keyframe_url?: string;
+}
+
+export interface RetrospectiveReport {
+  id: string;
+  camera_id: string;
+  domain: string;
+  custom_goal?: string | null;
+  what_happened: string;
+  what_went_wrong: string;
+  evidence_timeline: TimelineEvent[];
+  possible_explanation: string;
+  recommended_next_steps: string[];
+  keyframe_paths: string[];
+  clip_path?: string | null;
+  analysis_duration_sec: number;
+  severity: 'SAFE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  reasoning_engine: string;
+  created_at: string;
+}
+
+export interface CameraTimelineData {
+  camera_id: string;
+  buffered_seconds: number;
+  total_snapshots: number;
+  timeline: TimelineEvent[];
+  max_risk_60s: number;
+  active_hazards: string[];
+}
+
+export async function analyzeRetrospective(
+  cameraId: string,
+  domain: string = 'INDUSTRIAL_SOP',
+  customGoal?: string,
+  seconds: number = 60.0
+): Promise<RetrospectiveReport> {
+  return fetchJson<RetrospectiveReport>(`/api/retrospective/${cameraId}/analyze`, {
+    method: 'POST',
+    body: JSON.stringify({
+      domain,
+      custom_goal: customGoal || null,
+      seconds,
+    }),
+  });
+}
+
+export async function getCameraTimeline(
+  cameraId: string,
+  seconds: number = 60.0
+): Promise<CameraTimelineData> {
+  return fetchJson<CameraTimelineData>(`/api/retrospective/${cameraId}/timeline?seconds=${seconds}`);
+}
+
+export async function listRetrospectiveReports(
+  cameraId?: string,
+  limit: number = 20
+): Promise<{ total: number; reports: RetrospectiveReport[] }> {
+  const query = new URLSearchParams();
+  if (cameraId) query.set('camera_id', cameraId);
+  query.set('limit', String(limit));
+  return fetchJson<{ total: number; reports: RetrospectiveReport[] }>(`/api/retrospective/reports?${query.toString()}`);
+}
+
+export async function getRetrospectiveReport(reportId: string): Promise<RetrospectiveReport> {
+  return fetchJson<RetrospectiveReport>(`/api/retrospective/reports/${reportId}`);
+}
+

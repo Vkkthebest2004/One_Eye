@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Camera, LiveTrack, LiveDetection, Zone, Machine } from '@/types';
 import { getMediaUrl, useWebcam, useDemoVideo, stopCameraFeed, startCameraFeed, toggleCameraFeed } from '@/lib/api';
 import { ZonePolygonEditor } from './ZonePolygonEditor';
+import { RetrospectiveModal } from './RetrospectiveModal';
 
 interface MonitoringArrayProps {
   cameras: Camera[];
@@ -442,6 +443,9 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
   const [pausedCameras, setPausedCameras] = useState<Record<string, boolean>>({});
   const [cameraPowerState, setCameraPowerState] = useState<Record<string, 'ONLINE' | 'OFFLINE' | 'ERROR'>>({});
   const [isTogglingPower, setIsTogglingPower] = useState<Record<string, boolean>>({});
+  const [isRetroModalOpen, setIsRetroModalOpen] = useState<boolean>(false);
+  const [retroCameraId, setRetroCameraId] = useState<string>('CAM_WEBCAM');
+  const [retroCameraName, setRetroCameraName] = useState<string>('Laptop Webcam');
 
   useEffect(() => {
     const initial: Record<string, 'ONLINE' | 'OFFLINE' | 'ERROR'> = {};
@@ -532,6 +536,23 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* 60-Second Sequence Retrospective AI Analysis Button */}
+          <button
+            onClick={() => {
+              const cam = filteredCameras[0] || cameras[0];
+              if (cam) {
+                setRetroCameraId(cam.id);
+                setRetroCameraName(cam.name);
+              }
+              setIsRetroModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-500 to-primary text-black rounded-md text-xs font-mono font-bold shadow-sm transition-all active:scale-95 hover:shadow-primary/20 border border-primary/40"
+            title="Reconstruct the last 60 seconds of video, identify mistakes or stalls, and generate an AI report"
+          >
+            <span className="material-symbols-outlined text-sm font-bold">history_toggle_off</span>
+            Analyze Last 60s
+          </button>
+
           {/* Mark Restricted Area Button */}
           <button
             onClick={() => setIsZoneEditorOpen(true)}
@@ -587,6 +608,14 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal: 60-Second Sequence Video Retrospective AI Investigation */}
+      <RetrospectiveModal
+        cameraId={retroCameraId}
+        cameraName={retroCameraName}
+        isOpen={isRetroModalOpen}
+        onClose={() => setIsRetroModalOpen(false)}
+      />
 
       {/* Grid */}
       {filteredCameras.length === 0 ? (
@@ -707,6 +736,21 @@ export const MonitoringArray: React.FC<MonitoringArrayProps> = ({
 
                 {/* Top Right: Status Badge & Power Toggle */}
                 <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+                  {/* 60s Retrospective Replay Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRetroCameraId(cam.id);
+                      setRetroCameraName(cam.name);
+                      setIsRetroModalOpen(true);
+                    }}
+                    title="Analyze the previous 60 seconds on this camera"
+                    className="px-2 py-0.5 rounded text-[11px] font-label-mono-bold font-bold flex items-center gap-1 shadow-sm backdrop-blur transition-all border bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                  >
+                    <span className="material-symbols-outlined text-xs">history_toggle_off</span>
+                    <span>60s AI</span>
+                  </button>
+
                   <button
                     onClick={(e) => handleToggleCamera(cam.id, e)}
                     disabled={isTogglingPower[cam.id]}

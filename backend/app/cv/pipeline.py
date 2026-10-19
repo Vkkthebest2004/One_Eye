@@ -76,6 +76,8 @@ class CameraPipeline:
         self.fire_detector = FireSmokeDetector()
         self.risk_engine = RiskEngine()
         self.reasoner = QwenReasoner() if (settings.ENABLE_QWEN and settings.QWEN_API_KEY) else NoOpReasoner()
+        from app.cv.retrospective import RollingSequenceBuffer
+        self.sequence_buffer = RollingSequenceBuffer(camera_id=self.camera_id, max_seconds=75.0, sample_fps=5.0)
         self._cleanup_counter: int = 0
 
         # Operational State
@@ -170,6 +172,19 @@ class CameraPipeline:
                 last_frame_received_time = loop_start
                 self.latest_frame = frame
                 fps_frame_count += 1
+
+                # Feed rolling 60s sequence buffer (internally throttled to sample_fps)
+                max_risk_now = max((t.get("current_risk_score", 0) for t in self.latest_tracks), default=0)
+                active_hazards_now = set()
+                for t in self.latest_tracks:
+                    active_hazards_now.update(t.get("hazards", []))
+                self.sequence_buffer.append(
+                    frame=frame,
+                    tracks=self.latest_tracks,
+                    detections=self.latest_detections,
+                    active_hazards=list(active_hazards_now),
+                    max_risk=max_risk_now
+                )
 
                 if time.time() - fps_timer >= 1.0:
                     self.measured_fps = fps_frame_count / (time.time() - fps_timer)

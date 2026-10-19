@@ -42,6 +42,7 @@ from app.api.calibration import router as calibration_router
 from app.api.health import router as health_router
 from app.api.demo import router as demo_router
 from app.api.mobile import router as mobile_router
+from app.api.retrospective import router as retrospective_router
 
 # Setup Logging
 logging.basicConfig(
@@ -152,6 +153,7 @@ app.include_router(analytics_router)
 app.include_router(calibration_router)
 app.include_router(demo_router)
 app.include_router(mobile_router)
+app.include_router(retrospective_router)
 
 
 # ---------------------------------------------------------------------------

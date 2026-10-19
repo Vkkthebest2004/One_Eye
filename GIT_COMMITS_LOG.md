@@ -18,6 +18,14 @@ This document tracks all version-controlled milestones in the repository. If you
   - Locked danger perimeter to fixed normalized $(X, Y)$ coordinates ($0.0000 - 1.0000$).
   - Configured `DANGER_ZONE_REACHED` alert trigger: only fires when a person's physical foot contact point enters the marked coordinate perimeter.
 
+- **Commit `HEAD`**: `feat(retrospective): 60-second video sequence retrospective & incident reconstruction intelligence engine`
+  - Built rolling 60-second in-memory video & observation ring buffer (`RollingSequenceBuffer`) retaining timestamped preview frames and CV telemetry with zero disk wear (~6MB RAM footprint).
+  - Implemented temporal sequence reconstructor (`SequenceReconstructor`) extracting ordered chronological event timelines (`MM:SS — observation`).
+  - Implemented multi-domain operational rule evaluation (`INDUSTRIAL_SOP`, `EQUIPMENT_OPERATION`, `SECURITY_PERIMETER`, `ERGONOMICS_SAFETY`, and `CUSTOM` user goals).
+  - Built multimodal retrospective reasoner generating structured 5-part reports: What Happened, What May Have Gone Wrong, Evidence Timeline, Possible Explanation, and Recommended Next Steps.
+  - Added REST API endpoints (`POST /api/retrospective/{id}/analyze`, `GET /api/retrospective/{id}/timeline`, `GET /api/retrospective/{id}/clip`, `GET /api/retrospective/reports`).
+  - Added interactive frontend modal (`RetrospectiveModal.tsx`) with domain SOP cards, scrubbable keyframes, timeline visualizer, and export tools.
+
 - **Commit `8277109`**: `feat(system): camera power stop/start controls, PPE helmet & glasses accuracy, kinematic risk engine, and landing page`
   - Added camera power stop, start, and toggle controls (`POST /api/cameras/{id}/stop`, `start`, `toggle`) with full hardware release (`CameraSource.release()`), turning off the camera sensor/LED and releasing capture threads via re-entrant locks.
   - Implemented offline standby JPEG poster generator on `/api/cameras/{id}/stream` and per-camera UI controls with offline standby overlay in `MonitoringArray.tsx`.
@@ -44,6 +52,7 @@ This document tracks all version-controlled milestones in the repository. If you
 
 | Commit Hash | Component | Summary / Milestone Description |
 | :--- | :--- | :--- |
+| **`HEAD`** | `retrospective` | 60-second video retrospective sequence intelligence, timeline reconstruction & SOP diagnosis |
 | **`8277109`** | `system` | Camera hardware stop/start controls, PPE accuracy, kinematic risk engine, and landing page |
 | **`1da1b30`** | `zones` | Resolve danger zone false breaches with strict foot ground-anchor intersection |
 | **`5dbae5e`** | `cv` | Integrate Qwen2-VL perception engine with hot-switching and precision person filtering |

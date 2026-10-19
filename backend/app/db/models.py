@@ -148,3 +148,24 @@ class AuditLog(Base):
     metadata_json = Column(JSON, nullable=True)
 
     event = relationship("SafetyEvent", back_populates="audit_logs")
+
+
+class RetrospectiveReport(Base):
+    __tablename__ = "retrospective_reports"
+
+    id = Column(String(64), primary_key=True, index=True) # e.g. RETRO-20261019-1234
+    camera_id = Column(String(64), ForeignKey("cameras.id"), nullable=False, index=True)
+    domain = Column(String(64), default="INDUSTRIAL_SOP") # INDUSTRIAL_SOP, EQUIPMENT_OPERATION, SECURITY_PERIMETER, ERGONOMICS_SAFETY, CUSTOM
+    custom_goal = Column(Text, nullable=True)
+    what_happened = Column(Text, nullable=False)
+    what_went_wrong = Column(Text, nullable=False)
+    evidence_timeline = Column(JSON, nullable=False) # [{timestamp_str: "00:18", description: "...", keyframe_url: "..."}]
+    possible_explanation = Column(Text, nullable=False)
+    recommended_next_steps = Column(JSON, nullable=False) # list of string recommendations
+    keyframe_paths = Column(JSON, default=list) # list of image paths
+    clip_path = Column(String(512), nullable=True) # optional mp4 video clip path
+    analysis_duration_sec = Column(Float, default=60.0)
+    severity = Column(String(32), default="MEDIUM") # SAFE, LOW, MEDIUM, HIGH, CRITICAL
+    reasoning_engine = Column(String(64), default="Qwen3-VL Sequence Critic")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
